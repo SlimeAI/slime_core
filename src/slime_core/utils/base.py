@@ -43,7 +43,6 @@ from .metaclass import (
 from contextlib import ContextDecorator, ExitStack, contextmanager
 from functools import partial
 from types import TracebackType
-import slime_core.logging.logger as logger
 import re
 
 # TypeVars
@@ -156,6 +155,7 @@ class Base(ScopedAttr, ItemAttrBinding):
 
     @staticmethod
     def process_exc__():
+        import slime_core.logging.logger as logger
         # output error
         logger.core_logger.error(
             'Python exception raised:\n' +
@@ -290,6 +290,7 @@ class BiListItem:
     def set_parent__(self, parent) -> None:
         prev_parent = self.get_parent__()
         if not is_none_or_nothing(prev_parent) and parent is not prev_parent:
+            import slime_core.logging.logger as logger
             # duplicate parent
             logger.core_logger.warning(
                 f'BiListItem ``{str(self)}`` has already had a parent, but another parent is set. '
@@ -304,10 +305,12 @@ class BiListItem:
     def get_verified_parent__(self) -> Union["BiList", Nothing]:
         parent = self.get_parent__()
         if parent is NOTHING:
+            import slime_core.logging.logger as logger
             # root node
             logger.core_logger.warning(f'BiListItem ``{str(self)}`` does not have a parent.')
             return NOTHING
         if self not in parent:
+            import slime_core.logging.logger as logger
             # unmatched parent
             logger.core_logger.warning(f'BiListItem ``{str(self)}`` is not contained in its specified parent.')
             self.del_parent__()
@@ -1030,6 +1033,7 @@ def AttrObserve(
         try:
             setattr(item, name, value)
         except Exception:
+            import slime_core.logging.logger as logger
             logger.core_logger.warning(
                 f'Set ``{name}`` attribute failed. Observe object: {str(item)}. '
                 'Please make sure it supports attribute set.'
@@ -1073,6 +1077,7 @@ class ScopedAttrRestore(ContextDecorator, Generic[_T]):
                     # Remove previously non-existing attributes before the scope.
                     delattr(self.obj, attr)
             except Exception as e:
+                import slime_core.logging.logger as logger
                 logger.core_logger.error(
                     f'Restoring scoped attribute failed. Object: {str(self.obj)}, '
                     f'attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}'
@@ -1096,6 +1101,7 @@ class ScopedAttrAssign(ScopedAttrRestore[_T]):
             try:
                 setattr(self.obj, attr, value)
             except Exception as e:
+                import slime_core.logging.logger as logger
                 logger.core_logger.error(
                     f'Assigning scoped attribute failed. Object: {str(self.obj)}, '
                     f'attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}'

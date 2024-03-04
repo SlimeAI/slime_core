@@ -186,8 +186,10 @@ class Nothing(metaclass=_SingletonMetaclass):
     def __enter__(self) -> 'Nothing': return self
     def __exit__(self, *args, **kwargs): return
 
+
 NOTHING = Nothing()
 NoneOrNothing = Union[None, Nothing]
+
 
 def is_none_or_nothing(obj) -> bool:
     """Check whether an object is None, Nothing or neither.
@@ -206,9 +208,11 @@ class _FlagConstant(metaclass=_SingletonMetaclass):
     def __str__(self) -> str: return self.__class__.__name__.upper()
     def __repr__(self) -> str: return f'{str(self)}<{str(hex(id(self)))}>'
 
+
 # ``Pass`` singleton constant
 class Pass(_FlagConstant): pass
 PASS = Pass()
+
 
 # ``Missing`` singleton constant
 class Missing(_FlagConstant):
@@ -216,6 +220,7 @@ class Missing(_FlagConstant):
         return False
 
 MISSING = Missing()
+
 
 # ``Stop`` singleton constant
 class Stop(_FlagConstant):
@@ -230,6 +235,7 @@ STOP = Stop()
 
 FuncOrMethod = Union[FunctionType, MethodType]
 RawFunc = FunctionType
+
 
 def is_function_or_method(__item: Any) -> bool:
     return isinstance(__item, (MethodType, FunctionType))
