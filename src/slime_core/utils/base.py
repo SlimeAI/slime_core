@@ -197,7 +197,7 @@ class Base(ScopedAttr, ItemAttrBinding):
 # Base List
 #
 
-class BaseList(CoreBaseList[_T], MutableSequence[_T]):
+class BaseList(CoreBaseList[_T], MutableSequence[_T], Generic[_T]):
 
     def __init__(
         self,
@@ -294,7 +294,7 @@ _BiListT = TypeVar("_BiListT", bound="BiList")
 _MutableBiListItemT = TypeVar("_MutableBiListItemT", bound="MutableBiListItem")
 
 
-class BiListItem(CoreBiListItem[_BiListT]):
+class BiListItem(CoreBiListItem[_BiListT], Generic[_BiListT]):
     
     def __init__(self) -> None:
         self.__parent = NOTHING
@@ -360,7 +360,7 @@ class MutableBiListItem(
 
 _BiListItemT = TypeVar("_BiListItemT", bound=BiListItem)
 
-class BiList(BaseList[_BiListItemT], CoreBiList[_BiListItemT]):
+class BiList(BaseList[_BiListItemT], CoreBiList[_BiListItemT], Generic[_BiListItemT]):
     
     def set_list__(self, __list: List[_BiListItemT]) -> None:
         prev_list = self.get_list__()
@@ -418,7 +418,7 @@ class BiList(BaseList[_BiListItemT], CoreBiList[_BiListItemT]):
 # Base Dict
 #
 
-class BaseDict(CoreBaseDict[_KT, _VT], MutableMapping[_KT, _VT]):
+class BaseDict(CoreBaseDict[_KT, _VT], MutableMapping[_KT, _VT], Generic[_KT, _VT]):
 
     def __init__(
         self,
@@ -479,7 +479,10 @@ _YieldT_co = TypeVar("_YieldT_co", covariant=True)
 _SendT_contra = TypeVar("_SendT_contra", contravariant=True)
 _ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 
-class BaseGenerator(Generator[_YieldT_co, _SendT_contra, _ReturnT_co]):
+class BaseGenerator(
+    Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
+    Generic[_YieldT_co, _SendT_contra, _ReturnT_co]
+):
     """
     Call a generator more safely without rasing ``StopIteration``. When the 
     generator ends, the ``stop`` attribute is set to ``True``.
@@ -540,7 +543,8 @@ class BaseGenerator(Generator[_YieldT_co, _SendT_contra, _ReturnT_co]):
 
 class ContextGenerator(
     BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
-    ContextManager
+    ContextManager,
+    Generic[_YieldT_co, _SendT_contra, _ReturnT_co]
 ):
     """
     Make the generator a context manager. ``__enter__`` will call ``next`` 
@@ -679,8 +683,10 @@ def ContextManagerStack(
 _CompositeStructureT = TypeVar("_CompositeStructureT", bound="CompositeStructure")
 
 
-class CompositeStructure(CoreCompositeStructure[_CompositeStructureT]):
-    
+class CompositeStructure(
+    CoreCompositeStructure[_CompositeStructureT],
+    Generic[_CompositeStructureT]
+):
     def composite_iterable__(self) -> Union[Iterable[_CompositeStructureT], Nothing]: pass
 
 
@@ -1100,7 +1106,7 @@ class ScopedAttrRestore(ContextDecorator, Generic[_T]):
                 )
 
 
-class ScopedAttrAssign(ScopedAttrRestore[_T]):
+class ScopedAttrAssign(ScopedAttrRestore[_T], Generic[_T]):
 
     def __init__(
         self,

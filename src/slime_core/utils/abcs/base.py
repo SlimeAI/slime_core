@@ -23,7 +23,7 @@ _VT = TypeVar("_VT")
 # BaseDict ABC
 #
 
-class CoreBaseDict(MutableMapping[_KT, _VT], ABC):
+class CoreBaseDict(MutableMapping[_KT, _VT], ABC, Generic[_KT, _VT]):
 
     @abstractmethod
     def set_dict__(self, __dict: Dict[_KT, _VT]) -> None:
@@ -43,7 +43,7 @@ class CoreBaseDict(MutableMapping[_KT, _VT], ABC):
 # BaseList ABC
 #
 
-class CoreBaseList(MutableSequence[_T], ABC):
+class CoreBaseList(MutableSequence[_T], ABC, Generic[_T]):
 
     @abstractmethod
     def set_list__(self, __list: List[_T]) -> None:

@@ -11,7 +11,7 @@ _ContextT = TypeVar("_ContextT")
 _PluginHookT = TypeVar("_PluginHookT")
 
 
-class CorePluginHook(CoreBuildInterface[_ContextT], ABC):
+class CorePluginHook(CoreBuildInterface[_ContextT], ABC, Generic[_ContextT]):
     """
     Plugin hook for custom handler build.
     """

@@ -10,13 +10,14 @@ from .typing import (
     overload,
     Callable,
     Missing,
-    MISSING
+    MISSING,
+    Generic
 )
 
 _T = TypeVar("_T")
 
 
-class Registry(BaseDict[str, _T]):
+class Registry(BaseDict[str, _T], Generic[_T]):
 
     def __init__(
         self,
