@@ -188,17 +188,6 @@ class Nothing(metaclass=_SingletonMetaclass):
 
 
 NOTHING = Nothing()
-NoneOrNothing = Union[None, Nothing]
-
-
-def is_none_or_nothing(obj) -> bool:
-    """Check whether an object is None, Nothing or neither.
-    Args:
-        obj (Any): object
-    Returns:
-        bool: check result.
-    """
-    return obj is None or obj is NOTHING
 
 #
 # Flag constants.
@@ -228,6 +217,35 @@ class Stop(_FlagConstant):
         return False
 
 STOP = Stop()
+
+#
+# Null types.
+#
+
+NoneOrNothing = Union[None, Nothing]
+EmptyFlag = Union[NoneOrNothing, Missing]
+
+
+def is_none_or_nothing(obj: Any) -> bool:
+    """
+    Check whether an object is ``None``, ``NOTHING`` or neither.
+    """
+    return (
+        obj is None or 
+        obj is NOTHING
+    )
+
+
+def is_empty_flag(obj: Any) -> bool:
+    """
+    Check whether an object is an ``EmptyFlag`` (i.e., ``None``, 
+    ``NOTHING`` or ``MISSING``).
+    """
+    return (
+        obj is None or 
+        obj is NOTHING or 
+        obj is MISSING
+    )
 
 #
 # Other types, type checking, naming checking, type parsing, etc.

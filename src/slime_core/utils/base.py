@@ -40,6 +40,14 @@ from .metaclass import (
     SingletonMetaclass,
     _ReadonlyAttrMetaclass
 )
+from .abcs.base import (
+    CoreBaseList,
+    CoreBiListItem,
+    CoreMutableBiListItem,
+    CoreBiList,
+    CoreCompositeStructure,
+    CoreBaseDict
+)
 from contextlib import ContextDecorator, ExitStack, contextmanager
 from functools import partial
 from types import TracebackType
@@ -189,7 +197,7 @@ class Base(ScopedAttr, ItemAttrBinding):
 # Base List
 #
 
-class BaseList(MutableSequence[_T]):
+class BaseList(CoreBaseList[_T], MutableSequence[_T]):
 
     def __init__(
         self,
@@ -282,12 +290,16 @@ class BaseList(MutableSequence[_T]):
 # Bidirectional List
 #
 
-class BiListItem:
+_BiListT = TypeVar("_BiListT", bound="BiList")
+_MutableBiListItemT = TypeVar("_MutableBiListItemT", bound="MutableBiListItem")
+
+
+class BiListItem(CoreBiListItem[_BiListT]):
     
     def __init__(self) -> None:
         self.__parent = NOTHING
     
-    def set_parent__(self, parent) -> None:
+    def set_parent__(self, parent: _BiListT) -> None:
         prev_parent = self.get_parent__()
         if not is_none_or_nothing(prev_parent) and parent is not prev_parent:
             import slime_core.logging.logger as logger
@@ -299,10 +311,10 @@ class BiListItem:
             )
         self.__parent = parent
     
-    def get_parent__(self) -> Union["BiList", Nothing]:
+    def get_parent__(self) -> Union[_BiListT, Nothing]:
         return self.__parent if hasattr(self, '_BiListItem__parent') else NOTHING
     
-    def get_verified_parent__(self) -> Union["BiList", Nothing]:
+    def get_verified_parent__(self) -> Union[_BiListT, Nothing]:
         parent = self.get_parent__()
         if parent is NOTHING:
             import slime_core.logging.logger as logger
@@ -321,19 +333,19 @@ class BiListItem:
         self.__parent = NOTHING
 
 
-class MutableBiListItem(BiListItem):
+class MutableBiListItem(BiListItem[_BiListT], CoreMutableBiListItem[_BiListT, _MutableBiListItemT]):
     
-    def replace_self__(self, __item: 'MutableBiListItem') -> None:
+    def replace_self__(self, __item: _MutableBiListItemT) -> None:
         parent = self.get_verified_parent__()
         index = parent.index(self)
         parent[index] = __item
     
-    def insert_before_self__(self, __item: 'MutableBiListItem') -> None:
+    def insert_before_self__(self, __item: _MutableBiListItemT) -> None:
         parent = self.get_verified_parent__()
         index = parent.index(self)
         parent.insert(index, __item)
     
-    def insert_after_self__(self, __item: 'MutableBiListItem') -> None:
+    def insert_after_self__(self, __item: _MutableBiListItemT) -> None:
         parent = self.get_verified_parent__()
         index = parent.index(self)
         parent.insert(index + 1, __item)
@@ -345,7 +357,7 @@ class MutableBiListItem(BiListItem):
 
 _BiListItemT = TypeVar("_BiListItemT", bound=BiListItem)
 
-class BiList(BaseList[_BiListItemT]):
+class BiList(BaseList[_BiListItemT], CoreBiList[_BiListItemT]):
     
     def set_list__(self, __list: List[_BiListItemT]) -> None:
         prev_list = self.get_list__()
@@ -403,7 +415,7 @@ class BiList(BaseList[_BiListItemT]):
 # Base Dict
 #
 
-class BaseDict(MutableMapping[_KT, _VT]):
+class BaseDict(CoreBaseDict[_KT, _VT], MutableMapping[_KT, _VT]):
 
     def __init__(
         self,
@@ -661,7 +673,7 @@ def ContextManagerStack(
 # Composite Structure
 #
 
-class CompositeStructure:
+class CompositeStructure(CoreCompositeStructure["CompositeStructure"]):
     
     def composite_iterable__(self) -> Union[Iterable["CompositeStructure"], Nothing]: pass
 
