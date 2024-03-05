@@ -25,7 +25,7 @@ def dict_to_key_value_str(
     return str_sep.join(dict_to_key_value_str_list(__dict, key_value_sep=key_value_sep))
 
 
-def concat_format(
+def _concat_format(
     __left: str,
     __content: Sequence[str],
     __right: str,
@@ -34,6 +34,11 @@ def concat_format(
     indent_prefix: str = ' ' * 4,
     break_line: bool = True
 ) -> str:
+    """
+    A format function version that doesn't rely on the ``builtin_store`` config. In slime 
+    implementations, the ``concat_format`` function relies on the ``builtin_store`` config 
+    value (e.g., ``concat_format`` in ``torchslime.utils.common``).
+    """
     if len(__content) < 1:
         # empty content: simply concat ``__left`` and ``__right``
         return __left + __right
@@ -68,10 +73,3 @@ class Count:
             value = self.value
             self.value += 1
         return value
-
-
-class FuncArgs:
-    
-    def __init__(self, *args, **kwargs) -> None:
-        self.args = args
-        self.kwargs = kwargs

@@ -18,7 +18,7 @@ class CorePluginHook(CoreBuildInterface[_ContextT], ABC):
     pass
 
 
-class PluginContainer(
+class CorePluginContainer(
     CorePluginHook[_ContextT],
     CoreBaseList[_PluginHookT],
     ABC,

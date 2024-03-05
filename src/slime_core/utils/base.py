@@ -163,9 +163,9 @@ class Base(ScopedAttr, ItemAttrBinding):
 
     @staticmethod
     def process_exc__():
-        import slime_core.logging.logger as logger
+        from slime_core.logging.logger import core_logger
         # output error
-        logger.core_logger.error(
+        core_logger.error(
             'Python exception raised:\n' +
             traceback.format_exc()
         )
@@ -302,9 +302,9 @@ class BiListItem(CoreBiListItem[_BiListT]):
     def set_parent__(self, parent: _BiListT) -> None:
         prev_parent = self.get_parent__()
         if not is_none_or_nothing(prev_parent) and parent is not prev_parent:
-            import slime_core.logging.logger as logger
+            from slime_core.logging.logger import core_logger
             # duplicate parent
-            logger.core_logger.warning(
+            core_logger.warning(
                 f'BiListItem ``{str(self)}`` has already had a parent, but another parent is set. '
                 'This may be because you add a single BiListItem object to multiple BiLists '
                 'and may cause some inconsistent problems.'
@@ -317,14 +317,14 @@ class BiListItem(CoreBiListItem[_BiListT]):
     def get_verified_parent__(self) -> Union[_BiListT, Nothing]:
         parent = self.get_parent__()
         if parent is NOTHING:
-            import slime_core.logging.logger as logger
+            from slime_core.logging.logger import core_logger
             # root node
-            logger.core_logger.warning(f'BiListItem ``{str(self)}`` does not have a parent.')
+            core_logger.warning(f'BiListItem ``{str(self)}`` does not have a parent.')
             return NOTHING
         if self not in parent:
-            import slime_core.logging.logger as logger
+            from slime_core.logging.logger import core_logger
             # unmatched parent
-            logger.core_logger.warning(f'BiListItem ``{str(self)}`` is not contained in its specified parent.')
+            core_logger.warning(f'BiListItem ``{str(self)}`` is not contained in its specified parent.')
             self.del_parent__()
             return NOTHING
         return parent
@@ -333,8 +333,11 @@ class BiListItem(CoreBiListItem[_BiListT]):
         self.__parent = NOTHING
 
 
-class MutableBiListItem(BiListItem[_BiListT], CoreMutableBiListItem[_BiListT, _MutableBiListItemT]):
-    
+class MutableBiListItem(
+    BiListItem[_BiListT],
+    CoreMutableBiListItem[_MutableBiListItemT, _BiListT],
+    Generic[_MutableBiListItemT, _BiListT]
+):
     def replace_self__(self, __item: _MutableBiListItemT) -> None:
         parent = self.get_verified_parent__()
         index = parent.index(self)
@@ -673,12 +676,13 @@ def ContextManagerStack(
 # Composite Structure
 #
 
-class CompositeStructure(CoreCompositeStructure["CompositeStructure"]):
+_CompositeStructureT = TypeVar("_CompositeStructureT", bound="CompositeStructure")
+
+
+class CompositeStructure(CoreCompositeStructure[_CompositeStructureT]):
     
-    def composite_iterable__(self) -> Union[Iterable["CompositeStructure"], Nothing]: pass
+    def composite_iterable__(self) -> Union[Iterable[_CompositeStructureT], Nothing]: pass
 
-
-_CompositeStructureT = TypeVar("_CompositeStructureT", bound=CompositeStructure)
 
 def CompositeDFT(
     __item: _CompositeStructureT,
@@ -1045,8 +1049,8 @@ def AttrObserve(
         try:
             setattr(item, name, value)
         except Exception:
-            import slime_core.logging.logger as logger
-            logger.core_logger.warning(
+            from slime_core.logging.logger import core_logger
+            core_logger.warning(
                 f'Set ``{name}`` attribute failed. Observe object: {str(item)}. '
                 'Please make sure it supports attribute set.'
             )
@@ -1089,8 +1093,8 @@ class ScopedAttrRestore(ContextDecorator, Generic[_T]):
                     # Remove previously non-existing attributes before the scope.
                     delattr(self.obj, attr)
             except Exception as e:
-                import slime_core.logging.logger as logger
-                logger.core_logger.error(
+                from slime_core.logging.logger import core_logger
+                core_logger.error(
                     f'Restoring scoped attribute failed. Object: {str(self.obj)}, '
                     f'attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}'
                 )
@@ -1113,8 +1117,8 @@ class ScopedAttrAssign(ScopedAttrRestore[_T]):
             try:
                 setattr(self.obj, attr, value)
             except Exception as e:
-                import slime_core.logging.logger as logger
-                logger.core_logger.error(
+                from slime_core.logging.logger import core_logger
+                core_logger.error(
                     f'Assigning scoped attribute failed. Object: {str(self.obj)}, '
                     f'attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}'
                 )

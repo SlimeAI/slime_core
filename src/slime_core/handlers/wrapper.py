@@ -2,7 +2,8 @@ from . import CoreHandlerContainer
 from slime_core.utils.typing import (
     TypeVar,
     Union,
-    Generator
+    Generator,
+    Generic
 )
 from abc import ABC, abstractmethod
 
@@ -15,7 +16,8 @@ _ContextT = TypeVar("_ContextT")
 
 class CoreHandlerWrapper(
     CoreHandlerContainer[_HandlerT, _HandlerContainerT, _HandlerWrapperT, _HandlerWrapperContainerT, _ContextT],
-    ABC
+    ABC,
+    Generic[_HandlerT, _HandlerContainerT, _HandlerWrapperT, _HandlerWrapperContainerT, _ContextT]
 ):
     @abstractmethod
     def handle(self, ctx: _ContextT) -> None:
@@ -34,7 +36,8 @@ class CoreHandlerWrapper(
 
 class CoreHandlerWrapperContainer(
     CoreHandlerContainer[_HandlerT, _HandlerContainerT, _HandlerWrapperT, _HandlerWrapperContainerT, _ContextT],
-    ABC
+    ABC,
+    Generic[_HandlerT, _HandlerContainerT, _HandlerWrapperT, _HandlerWrapperContainerT, _ContextT]
 ):
     @abstractmethod
     def handle(self, ctx: _ContextT, wrapped: _HandlerT) -> None:

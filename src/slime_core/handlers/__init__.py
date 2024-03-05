@@ -201,7 +201,8 @@ class CoreHandler(
 class CoreHandlerContainer(
     CoreHandler[_HandlerT, _HandlerContainerT, _HandlerWrapperT, _HandlerWrapperContainerT, _ContextT],
     CoreBiList[_HandlerT],
-    ABC
+    ABC,
+    Generic[_HandlerT, _HandlerContainerT, _HandlerWrapperT, _HandlerWrapperContainerT, _ContextT]
 ):
     """
     ABC for HandlerContainers.
