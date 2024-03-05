@@ -21,7 +21,9 @@ class CoreLaunchUtil(ABC):
     """
     
     def __init__(self) -> None:
-        self.dist_comm: Union[CoreDistComm, NoneOrNothing] = NOTHING
+        # Just for type hint here. Concrete attribute assignment should be completed 
+        # in the subclasses.
+        self.dist_comm: Union[CoreDistComm, NoneOrNothing]
 
     @abstractmethod
     def call(
