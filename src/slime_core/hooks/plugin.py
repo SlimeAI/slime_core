@@ -2,10 +2,9 @@ from .build import CoreBuildInterface
 from slime_core.utils.abcs.base import CoreBaseList
 from slime_core.utils.typing import (
     TypeVar,
-    Generator,
     Generic
 )
-from abc import ABC, abstractmethod
+from abc import ABC
 
 _ContextT = TypeVar("_ContextT")
 _PluginHookT = TypeVar("_PluginHookT")
@@ -24,23 +23,7 @@ class CorePluginContainer(
     ABC,
     Generic[_ContextT, _PluginHookT]
 ):
-    @abstractmethod
-    def build_train_yield(self, ctx: _ContextT) -> Generator:
-        """
-        NOTE: This method should be overridden.
-        """
-        pass
-    
-    @abstractmethod
-    def build_eval_yield(self, ctx: _ContextT) -> Generator:
-        """
-        NOTE: This method should be overridden.
-        """
-        pass
-    
-    @abstractmethod
-    def build_predict_yield(self, ctx: _ContextT) -> Generator:
-        """
-        NOTE: This method should be overridden.
-        """
-        pass
+    """
+    Plugin container that calls plugin hooks.
+    """
+    pass

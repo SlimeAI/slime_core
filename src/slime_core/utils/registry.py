@@ -14,11 +14,19 @@ from .typing import (
     Generic
 )
 
-_T = TypeVar("_T")
+_KT = TypeVar("_KT")
+_VT = TypeVar("_VT")
 
 
-class Registry(BaseDict[str, _T], Generic[_T]):
-
+class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
+    """
+    A general registry whose type of keys can be any specified value. 
+    
+    We name the parameter in the methods ``cls`` (or ``_cls``) because at 
+    first the registry is designed for classes, and for compatibility we 
+    have not renamed the parameter.
+    """
+    
     def __init__(
         self,
         namespace: str,
@@ -29,81 +37,158 @@ class Registry(BaseDict[str, _T], Generic[_T]):
         self.__namespace = namespace
         self.strict = strict
     
+    def get_namespace(self) -> str:
+        """
+        Get the namespace of the registry.
+        """
+        return self.__namespace
+
+    def parse_strict__(self, strict: Union[bool, Missing] = MISSING):
+        """
+        Parse the given ``strict`` value. If ``strict`` is ``MISSING``, then 
+        return ``self.strict`` (i.e., the config of the registry), else 
+        directly return ``strict`` (which will override the registry config 
+        when registering a specific item).
+        """
+        return (
+            strict if strict is not MISSING else self.strict
+        )
+    
+    #
+    # Register a single item using ``__call__``.
+    #
+    
     @overload
     def __call__(
         self,
         _cls: Missing = MISSING,
         *,
-        name: Union[str, Missing] = MISSING,
+        key: Union[_KT, Missing] = MISSING,
         strict: Union[bool, Missing] = MISSING
-    ) -> Callable[[_T], _T]: pass
+    ) -> Callable[[_VT], _VT]: pass
     @overload
     def __call__(
         self,
-        _cls: _T,
+        _cls: _VT,
         *,
-        name: Union[str, Missing] = MISSING,
+        key: Union[_KT, Missing] = MISSING,
         strict: Union[bool, Missing] = MISSING
-    ) -> _T: pass
+    ) -> _VT: pass
     
     @DecoratorCall(index=1, keyword='_cls')
     def __call__(
         self,
-        _cls: Union[_T, Missing] = MISSING,
+        _cls: Union[_VT, Missing] = MISSING,
         *,
-        name: Union[str, Missing] = MISSING,
+        key: Union[_KT, Missing] = MISSING,
         strict: Union[bool, Missing] = MISSING
-    ) -> _T:
-        strict = self._get_strict(strict)
-
-        def decorator(cls: _T) -> _T:
-            nonlocal name
-            if name is MISSING:
-                name = getattr(cls, '__name__', 'UNKNOWN NAME')
-            if name in self and strict:
-                namespace = self.get_namespace()
-                raise ValueError(f'Name "{name}" already in registry "{namespace}".')
-            self[name] = cls
+    ) -> _VT:
+        """
+        Register an item. Can be used as a decorator or a normal method.
+        """
+        def decorator(cls: _VT) -> _VT:
+            # Call the core register method.
+            self.register__(cls, key, strict)
             return cls
         
         return decorator
 
+    #
+    # Register a single item with multiple keys.
+    #
+
     @overload
     def register_multi(
         self,
-        names: Sequence[str],
+        keys: Sequence[_KT],
         *,
         _cls: Missing = MISSING,
         strict: Union[bool, Missing] = MISSING
-    ) -> Callable[[_T], _T]: pass
+    ) -> Callable[[_VT], _VT]: pass
     @overload
     def register_multi(
         self,
-        names: Sequence[str],
+        keys: Sequence[_KT],
         *,
-        _cls: _T,
+        _cls: _VT,
         strict: Union[bool, Missing] = MISSING
-    ) -> _T: pass
+    ) -> _VT: pass
 
     @DecoratorCall(keyword='_cls')
     def register_multi(
         self,
-        names: Sequence[str],
+        keys: Sequence[_KT],
         *,
-        _cls: Union[_T, Missing] = MISSING,
+        _cls: Union[_VT, Missing] = MISSING,
         strict: Union[bool, Missing] = MISSING
-    ) -> _T:
-        strict = self._get_strict(strict)
+    ) -> _VT:
+        strict = self.parse_strict__(strict)
 
-        def decorator(cls: _T) -> _T:
-            for name in names:
-                self(_cls=cls, name=name, strict=strict)
+        def decorator(cls: _VT) -> _VT:
+            for key in keys:
+                # Respectively register the item with different keys.
+                self(_cls=cls, key=key, strict=strict)
             return cls
         
         return decorator
 
-    def get_namespace(self) -> str:
-        return self.__namespace
+    #
+    # The core register method.
+    #
 
-    def _get_strict(self, strict: Union[bool, Missing] = MISSING):
-        return strict if strict is not MISSING else self.strict
+    def register__(
+        self,
+        cls: _VT,
+        key: Union[_KT, Missing],
+        strict: Union[bool, Missing]
+    ) -> None:
+        """
+        Core register method. Can be overridden by subclasses for extended features.
+        """
+        strict = self.parse_strict__(strict)
+        if key is MISSING:
+            # The key should be explicitly specified or be properly handled by subclasses, 
+            # so it should never be ``MISSING`` here.
+            from .exception import APIMisused
+            namespace = self.get_namespace()
+            raise APIMisused(
+                f'Error when registering ``{repr(cls)}`` in registry ``{namespace}``. '
+                f'Key cannot be ``MISSING``. Check the key setting.'
+            )
+        if key in self and strict:
+            namespace = self.get_namespace()
+            raise ValueError(
+                f'Key ``{key}`` already exists in registry ``{namespace}``.'
+            )
+        # Register ``cls`` with ``key``.
+        self[key] = cls
+
+
+class Registry(GeneralRegistry[str, _VT], Generic[_VT]):
+    """
+    A more commonly used registry with key type set to str.
+    """
+
+    def register__(
+        self,
+        cls: _VT,
+        key: Union[str, Missing],
+        strict: Union[bool, Missing]
+    ) -> None:
+        """
+        Core register method. If ``key`` is not specified, get the ``__name__`` of 
+        ``cls`` as ``key``.
+        """
+        if key is MISSING:
+            # Try to get the ``__name__`` of ``cls`` if ``key`` is not specified.
+            key = getattr(cls, '__name__', MISSING)
+        if key is MISSING:
+            from .exception import APIMisused
+            namespace = self.get_namespace()
+            raise APIMisused(
+                f'Registry cannot correctly infer the ``key`` when registering '
+                f'``{repr(cls)}`` in registry {namespace}. Neither is the ``key`` '
+                f'param specified, nor does the attribute ``__name__`` exist in '
+                f'``{repr(cls)}``.'
+            )
+        return super().register__(cls, key, strict)

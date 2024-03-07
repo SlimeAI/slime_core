@@ -38,7 +38,8 @@ from .decorator import (
 from .metaclass import (
     InitOnceMetaclass,
     SingletonMetaclass,
-    _ReadonlyAttrMetaclass
+    _ReadonlyAttrMetaclass,
+    Metaclasses
 )
 from .abcs.base import (
     CoreBaseList,
@@ -48,6 +49,7 @@ from .abcs.base import (
     CoreCompositeStructure,
     CoreBaseDict
 )
+from abc import ABCMeta
 from contextlib import ContextDecorator, ExitStack, contextmanager
 from functools import partial
 from types import TracebackType
@@ -117,13 +119,14 @@ class InitOnceBase(metaclass=InitOnceMetaclass):
 # Base
 #
 
-class Base(ScopedAttr, ItemAttrBinding):
+class Base(ScopedAttr, ItemAttrBinding, InitOnceBase):
     """
     Base class, making its subclasses be able to use '[]' operations(just like python dict).
     Return 'Nothing' if the object does not have the property being retrieved, without throwing Errors.
     What's more, it allows its subclasses assign properties using a dict.
     """
 
+    @InitOnce
     def __init__(self) -> None:
         ScopedAttr.__init__(self)
         ItemAttrBinding.__init__(self)
@@ -197,8 +200,15 @@ class Base(ScopedAttr, ItemAttrBinding):
 # Base List
 #
 
-class BaseList(CoreBaseList[_T], MutableSequence[_T], Generic[_T]):
+class BaseList(
+    CoreBaseList[_T],
+    MutableSequence[_T],
+    InitOnceBase,
+    Generic[_T],
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+):
 
+    @InitOnce
     def __init__(
         self,
         __list_like: Union[Iterable[_T], NoneOrNothing] = None
@@ -294,8 +304,14 @@ _BiListT = TypeVar("_BiListT", bound="BiList")
 _MutableBiListItemT = TypeVar("_MutableBiListItemT", bound="MutableBiListItem")
 
 
-class BiListItem(CoreBiListItem[_BiListT], Generic[_BiListT]):
+class BiListItem(
+    CoreBiListItem[_BiListT],
+    InitOnceBase,
+    Generic[_BiListT],
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+):
     
+    @InitOnce
     def __init__(self) -> None:
         self.__parent = NOTHING
     
@@ -418,8 +434,15 @@ class BiList(BaseList[_BiListItemT], CoreBiList[_BiListItemT], Generic[_BiListIt
 # Base Dict
 #
 
-class BaseDict(CoreBaseDict[_KT, _VT], MutableMapping[_KT, _VT], Generic[_KT, _VT]):
+class BaseDict(
+    CoreBaseDict[_KT, _VT],
+    MutableMapping[_KT, _VT],
+    InitOnceBase,
+    Generic[_KT, _VT],
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+):
 
+    @InitOnce
     def __init__(
         self,
         __dict_like: Union[Dict[_KT, _VT], Iterable[Tuple[_KT, _VT]], NoneOrNothing] = None,
@@ -481,13 +504,16 @@ _ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 
 class BaseGenerator(
     Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
-    Generic[_YieldT_co, _SendT_contra, _ReturnT_co]
+    InitOnceBase,
+    Generic[_YieldT_co, _SendT_contra, _ReturnT_co],
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
 ):
     """
     Call a generator more safely without rasing ``StopIteration``. When the 
     generator ends, the ``stop`` attribute is set to ``True``.
     """
 
+    @InitOnce
     def __init__(
         self,
         __gen: Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
@@ -544,6 +570,7 @@ class BaseGenerator(
 class ContextGenerator(
     BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
     ContextManager,
+    InitOnceBase,
     Generic[_YieldT_co, _SendT_contra, _ReturnT_co]
 ):
     """
@@ -556,6 +583,7 @@ class ContextGenerator(
     if the exception is NOT None, then ``throw`` is called.
     """
     
+    @InitOnce
     def __init__(
         self,
         __gen: Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
@@ -759,8 +787,9 @@ def CompositeBFS(
 # Attr Proxy
 #
 
-class AttrProxy(Generic[_T]):
+class AttrProxy(InitOnceBase, Generic[_T]):
     
+    @InitOnce
     def __init__(
         self,
         __obj: _T,
@@ -951,8 +980,9 @@ class _AttrObserverDict(BaseDict[str, List[AttrObserver]]):
                 del self[__name]
 
 
-class AttrObservable:
+class AttrObservable(InitOnceBase):
     
+    @InitOnce
     def __init__(self) -> None:
         # attr name to observers
         self.__attr_observer_dict: _AttrObserverDict = _AttrObserverDict()
