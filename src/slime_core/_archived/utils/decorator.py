@@ -13,8 +13,8 @@ from slime_core.utils.typing import (
     Type,
     Any,
     overload,
-    get_mro,
-    get_bases,
+    resolve_mro,
+    resolve_bases,
     Tuple,
     MISSING,
     Missing,
@@ -129,7 +129,7 @@ def get_original_self_func(func):
 
 def _get_func_from_mro(cls: type, name: str, start: int=0) -> Union[RawFunc, Nothing]:
     # get attr from the mro tuple
-    mro_tuple = get_mro(cls)
+    mro_tuple = resolve_mro(cls)
     try:
         return unwrap_method(getattr(mro_tuple[start], name, NOTHING))
     except IndexError:
@@ -257,10 +257,10 @@ def MetaclassCheck(
         
         # Metaclasses of ``cls``.
         cls_metaclass = type(cls)
-        bases = get_bases(cls)
+        bases = resolve_bases(cls)
 
         for base in bases:
-            base_metaclass_mro: List[Type] = list(get_mro(type(base)))
+            base_metaclass_mro: List[Type] = list(resolve_mro(type(base)))
             
             while len(base_metaclass_mro) > 0:
                 metaclass = base_metaclass_mro.pop(0)
@@ -271,7 +271,7 @@ def MetaclassCheck(
                 if metaclass not in ignored:
                     if not issubclass(cls_metaclass, metaclass):
                         from slime_core.utils.exception import APIMisused
-                        cls_metaclass_mro = get_mro(cls_metaclass)
+                        cls_metaclass_mro = resolve_mro(cls_metaclass)
                         raise APIMisused(
                             f'Metaclass check failed. Class: {cls} - Metaclass: {cls_metaclass} - '
                             f'MRO of Metaclass: {cls_metaclass_mro} - Missing metaclass: {metaclass} '
@@ -279,7 +279,7 @@ def MetaclassCheck(
                         )
                 # Remove the mro of ``metaclass`` from ``base_metaclass_mro`` 
                 # in order to improve running efficiency.
-                metaclass_mro_set = set(get_mro(metaclass))
+                metaclass_mro_set = set(resolve_mro(metaclass))
                 base_metaclass_mro = list(filter(
                     lambda _cls: _cls not in metaclass_mro_set,
                     base_metaclass_mro

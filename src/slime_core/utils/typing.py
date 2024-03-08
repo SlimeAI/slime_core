@@ -286,9 +286,9 @@ def unwrap_method(func: Union[FuncOrMethod, NoneOrNothing]) -> Union[RawFunc, No
     return func
 
 
-def get_mro(cls: Type) -> Tuple[Type, ...]:
+def resolve_mro(cls: Type) -> Tuple[Type, ...]:
     """
-    Safely get the mro of any given class. NOTE: If the class has the 
+    Safely resolve the mro of any given class. NOTE: If the class has the 
     attribute ``__mro__``, then directly return it. Otherwise, call the 
     corresponding ``mro()`` method to the the mro.
     """
@@ -313,9 +313,9 @@ def get_mro(cls: Type) -> Tuple[Type, ...]:
         return tuple(cls.mro())
 
 
-def get_bases(cls: Type) -> Tuple[Type, ...]:
+def resolve_bases(cls: Type) -> Tuple[Type, ...]:
     """
-    Safely get the bases of any given class. NOTE: If the class has the 
+    Safely resolve the bases of any given class. NOTE: If the class has the 
     attribute ``__bases__``, then directly return it. Otherwise (e.g., 
     typing.Sequence), this function resolves the mro and returns the 
     'minimal base class set'.
@@ -337,16 +337,16 @@ def get_bases(cls: Type) -> Tuple[Type, ...]:
     # However, the 'minimal base class set' of ``C`` is (B,) according to the 
     # definition.
     
-    # ``get_bases(C)`` still returns (B, A) because class ``C`` has attribute 
+    # ``resolve_bases(C)`` still returns (B, A) because class ``C`` has attribute 
     # ``__bases__``
-    print(get_bases(C))
+    print(resolve_bases(C))
     
     # NOTE: ``typing.Sequence`` is different from ``collections.abc.Sequence`` 
     # and it doesn't have ``__bases__`` or ``__mro__``.
     from typing import Sequence
     print(hasattr(Sequence, '__bases__'))
     print(hasattr(Sequence, '__mro__'))
-    print(get_bases(Sequence))
+    print(resolve_bases(Sequence))
     
     # Output:
     # False
@@ -359,13 +359,44 @@ def get_bases(cls: Type) -> Tuple[Type, ...]:
         return cls.__bases__
 
     # Get the mro of ``cls`` (excluding itself).
-    mro_classes = list(filter(lambda _cls: _cls is not cls, get_mro(cls)))
+    mro_classes = list(filter(lambda _cls: _cls is not cls, resolve_mro(cls)))
     bases = []
     while len(mro_classes) > 0:
         # NOTE: should pop the first element in the list (index=0).
         base = mro_classes.pop(0)
         bases.append(base)
         # Get the mro of ``base`` and remove them from ``mro_classes``.
-        base_mro_set = set(get_mro(base))
+        base_mro_set = set(resolve_mro(base))
         mro_classes = list(filter(lambda _cls: _cls not in base_mro_set, mro_classes))
     return tuple(bases)
+
+
+def resolve_minimal_classes(classes: Sequence[Type]) -> Tuple[Type, ...]:
+    """
+    Resolve the 'minimal classes' of the given class sequence. 'minimal classes' denotes that 
+    any of the classes which do not have a subclass is contained in the tuple, otherwise not. 
+    The original order of 'minimal classes' is kept. If multiple same classes exist in the 
+    given class sequence, the first occurrence is kept.
+    
+    TODO: efficiency of the method can be optimized through pruning.
+    """
+    classes = list(classes)
+    minimal_classes: List[Type] = []
+    for cls in classes:
+        # Multiple same class occurrences.
+        if cls in minimal_classes:
+            continue
+        
+        is_minimal_class = True
+        for other_cls in classes:
+            if (
+                issubclass(other_cls, cls) and 
+                cls is not other_cls
+            ):
+                # Not the 'minimal class'.
+                is_minimal_class = False
+                break
+        
+        if is_minimal_class:
+            minimal_classes.append(cls)
+    return tuple(minimal_classes)
