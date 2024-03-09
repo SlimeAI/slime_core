@@ -11,7 +11,8 @@ from .typing import (
     Dict,
     Any,
     _SingletonMetaclass,
-    TYPE_CHECKING
+    TYPE_CHECKING,
+    MISSING
 )
 if TYPE_CHECKING:
     from .base import ReadonlyAttr
@@ -34,6 +35,14 @@ def Metaclasses(*args: Type[type], **kwargs) -> Type[type]:
         # metaclass simply inherits multiple metaclasses and does nothing else.
         metaclass_adapter__ = True
     return MergedMetaclass
+
+
+def is_metaclass_adapter(cls: Type) -> bool:
+    """
+    Check if a class is a metaclass adapter. Return ``True`` if and only if ``cls`` has attribute 
+    ``metaclass_adapter__`` and the value is ``True``.
+    """
+    return getattr(cls, 'metaclass_adapter__', MISSING) is True
 
 
 class InstanceCreationHookMetaclass(type):

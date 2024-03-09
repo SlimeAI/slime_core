@@ -1201,14 +1201,18 @@ class ReadonlyAttr(metaclass=_ReadonlyAttrMetaclass):
     """
     Make specified attributes readonly.
     """
-    
+    __slots__ = ()
+    # ``readonly_attr__`` can be specified by each class. It denotes the 
+    # newly added readonly attributes in the current class.
+    # ``readonly_attr_computed__`` is computed by ``_ReadonlyAttrMetaclass`` 
+    # when the class is created. It will inherit ``readonly_attr_computed__`` 
+    # in the base classes and additionally add ``readonly_attr__`` defined in 
+    # the current class.
     readonly_attr__: Tuple[str, ...] = ()
     readonly_attr_computed__: FrozenSet[str] = frozenset()
-    """
-    ``nothing_readonly__``, ``empty_readonly__``: 
-    Whether empty value or ``NOTHING`` value of a specified attribute 
-    is still readonly.
-    """
+    # ``nothing_readonly__``, ``empty_readonly__``: 
+    # Whether empty value or ``NOTHING`` value of a specified attribute 
+    # is still readonly.
     nothing_readonly__: bool = False
     empty_readonly__: bool = False
     

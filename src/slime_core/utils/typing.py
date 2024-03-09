@@ -226,25 +226,25 @@ NoneOrNothing = Union[None, Nothing]
 EmptyFlag = Union[NoneOrNothing, Missing]
 
 
-def is_none_or_nothing(obj: Any) -> bool:
+def is_none_or_nothing(__obj: Any) -> bool:
     """
     Check whether an object is ``None``, ``NOTHING`` or neither.
     """
     return (
-        obj is None or 
-        obj is NOTHING
+        __obj is None or 
+        __obj is NOTHING
     )
 
 
-def is_empty_flag(obj: Any) -> bool:
+def is_empty_flag(__obj: Any) -> bool:
     """
     Check whether an object is an ``EmptyFlag`` (i.e., ``None``, 
     ``NOTHING`` or ``MISSING``).
     """
     return (
-        obj is None or 
-        obj is NOTHING or 
-        obj is MISSING
+        __obj is None or 
+        __obj is NOTHING or 
+        __obj is MISSING
     )
 
 #
@@ -272,34 +272,34 @@ def is_slime_naming(__name: str) -> bool:
 
 
 @overload
-def unwrap_method(func: FuncOrMethod) -> RawFunc: pass
+def unwrap_method(__func: FuncOrMethod) -> RawFunc: pass
 @overload
-def unwrap_method(func: NoneOrNothing) -> NoneOrNothing: pass
+def unwrap_method(__func: NoneOrNothing) -> NoneOrNothing: pass
 
-def unwrap_method(func: Union[FuncOrMethod, NoneOrNothing]) -> Union[RawFunc, NoneOrNothing]:
+def unwrap_method(__func: Union[FuncOrMethod, NoneOrNothing]) -> Union[RawFunc, NoneOrNothing]:
     """
     Get the original static function if the given ``func`` is a method.
     """
-    if isinstance(func, MethodType):
+    if isinstance(__func, MethodType):
         # get the original function body of the method
-        func = func.__func__
-    return func
+        __func = __func.__func__
+    return __func
 
 
-def resolve_mro(cls: Type) -> Tuple[Type, ...]:
+def resolve_mro(__cls: Type) -> Tuple[Type, ...]:
     """
     Safely resolve the mro of any given class. NOTE: If the class has the 
     attribute ``__mro__``, then directly return it. Otherwise, call the 
     corresponding ``mro()`` method to the the mro.
     """
     # If ``cls`` has ``__mro__``, then directly return.
-    if hasattr(cls, '__mro__'):
-        return cls.__mro__
+    if hasattr(__cls, '__mro__'):
+        return __cls.__mro__
     
     try:
         # NOTE: Some class (e.g., typing.Sequence) doesn't support subclass 
         # check, and ``issubclass`` will raise an exception.
-        is_type_subclass = issubclass(cls, type)
+        is_type_subclass = issubclass(__cls, type)
     except Exception:
         is_type_subclass = False
     
@@ -307,13 +307,13 @@ def resolve_mro(cls: Type) -> Tuple[Type, ...]:
         # NOTE: If the given class is a metaclass, then the corresponding 
         # ``mro`` method to be called should be in the 'metaclass of the 
         # given metaclass' (i.e., type(cls)).
-        return tuple(type(cls).mro(cls))
+        return tuple(type(__cls).mro(__cls))
     else:
         # Normal classes simply call the ``mro`` method.
-        return tuple(cls.mro())
+        return tuple(__cls.mro())
 
 
-def resolve_bases(cls: Type) -> Tuple[Type, ...]:
+def resolve_bases(__cls: Type) -> Tuple[Type, ...]:
     """
     Safely resolve the bases of any given class. NOTE: If the class has the 
     attribute ``__bases__``, then directly return it. Otherwise (e.g., 
@@ -355,11 +355,11 @@ def resolve_bases(cls: Type) -> Tuple[Type, ...]:
     ```
     """
     # If ``cls`` has ``__bases__``, then directly return.
-    if hasattr(cls, '__bases__'):
-        return cls.__bases__
+    if hasattr(__cls, '__bases__'):
+        return __cls.__bases__
 
     # Get the mro of ``cls`` (excluding itself).
-    mro_classes = list(filter(lambda _cls: _cls is not cls, resolve_mro(cls)))
+    mro_classes = list(filter(lambda _cls: _cls is not __cls, resolve_mro(__cls)))
     bases = []
     while len(mro_classes) > 0:
         # NOTE: should pop the first element in the list (index=0).
@@ -371,24 +371,26 @@ def resolve_bases(cls: Type) -> Tuple[Type, ...]:
     return tuple(bases)
 
 
-def resolve_minimal_classes(classes: Sequence[Type]) -> Tuple[Type, ...]:
+def resolve_minimal_classes(__classes: Iterable[Type]) -> Tuple[Type, ...]:
     """
-    Resolve the 'minimal classes' of the given class sequence. 'minimal classes' denotes that 
+    Resolve the 'minimal classes' of the given class iterable. 'minimal classes' denotes that 
     any of the classes which do not have a subclass is contained in the tuple, otherwise not. 
     The original order of 'minimal classes' is kept. If multiple same classes exist in the 
-    given class sequence, the first occurrence is kept.
+    given class iterable, the first occurrence is kept.
     
     TODO: efficiency of the method can be optimized through pruning.
     """
-    classes = list(classes)
+    # NOTE: should create a new tuple of ``__classes``, because some iterable items DO NOT 
+    # support iterating multiple times.
+    __classes = tuple(__classes)
     minimal_classes: List[Type] = []
-    for cls in classes:
+    for cls in __classes:
         # Multiple same class occurrences.
         if cls in minimal_classes:
             continue
         
         is_minimal_class = True
-        for other_cls in classes:
+        for other_cls in __classes:
             if (
                 issubclass(other_cls, cls) and 
                 cls is not other_cls
@@ -400,3 +402,43 @@ def resolve_minimal_classes(classes: Sequence[Type]) -> Tuple[Type, ...]:
         if is_minimal_class:
             minimal_classes.append(cls)
     return tuple(minimal_classes)
+
+
+def class_difference(__x_iterable: Iterable[Type], __y_iterable: Iterable[Type]) -> Tuple[Type, ...]:
+    """
+    Given two iterable class items ``__x_iterable`` and ``__y_iterable``, compute 
+    ``__x_iterable - __y_iterable`` similar to the set difference but consider the inheritance 
+    relationship and keep the iterable order. In addition, elements won't be deduplicated like 
+    a set.
+    
+    Example:
+    
+    ```Python
+    class A: pass
+
+    class B(A): pass
+
+    class C: pass
+
+    class D(C): pass
+
+    # output: (<class '__main__.D'>, <class '__main__.D'>)
+    print(class_difference((A, C, D, D), (B, C)))
+    ```
+    """
+    # NOTE: should create new tuples of ``__x_iterable`` and ``__y_iterable``, because some 
+    # iterable items DO NOT support iterating multiple times.
+    __x_iterable = tuple(__x_iterable)
+    __y_iterable = tuple(__y_iterable)
+    result = []
+    for x in __x_iterable:
+        is_remained = True
+        for y in __y_iterable:
+            if issubclass(y, x):
+                # If ``y`` is exactly ``x`` or the subclass of ``x``, then ``x`` 
+                # should be discarded.
+                is_remained = False
+                break
+        if is_remained:
+            result.append(x)
+    return tuple(result)
