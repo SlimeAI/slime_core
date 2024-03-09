@@ -7,9 +7,20 @@ from slime_core.utils.typing import (
     EmptyFlag,
     Nothing
 )
+from slime_core.utils.common import FuncArgs
 from abc import ABC, abstractmethod
 
 _ContextT = TypeVar("_ContextT")
+
+
+class CompileFuncArgs(FuncArgs):
+    """
+    Pack multiple func arguments in a single ``CompileFuncArgs`` object. 
+    Used as an indicator that the compile function accepts multiple args and 
+    the ``CompileFuncArgs`` object should be unpacked to call the compile 
+    function.
+    """
+    pass
 
 
 class CoreCompile(ABC, Generic[_ContextT]):

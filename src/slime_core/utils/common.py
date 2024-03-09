@@ -73,3 +73,12 @@ class Count:
             value = self.value
             self.value += 1
         return value
+
+
+class FuncArgs:
+    """
+    Pack multiple func arguments in a single object.
+    """
+    def __init__(self, *args, **kwargs) -> None:
+        self.args = args
+        self.kwargs = kwargs
