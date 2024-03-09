@@ -5,17 +5,20 @@ from slime_core.utils.typing import (
     Generic,
     Union,
     EmptyFlag,
-    Nothing
+    Nothing,
+    TypeVar
 )
-from slime_core.utils.common import FuncArgs
+from slime_core.utils.common import FuncParams
 from abc import ABC, abstractmethod
 
 _ContextT = TypeVar("_ContextT")
+_ArgsT = TypeVar('_ArgsT')
+_KwdsT = TypeVar('_KwdsT')
 
 
-class CompileFuncArgs(FuncArgs):
+class CompileFuncParams(FuncParams[_ArgsT, _KwdsT], Generic[_ArgsT, _KwdsT]):
     """
-    Pack multiple func arguments in a single ``CompileFuncArgs`` object. 
+    Pack multiple func parameters in a single ``CompileFuncParams`` object. 
     Used as an indicator that the compile function accepts multiple args and 
     the ``CompileFuncArgs`` object should be unpacked to call the compile 
     function.

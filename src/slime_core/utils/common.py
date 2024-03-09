@@ -3,8 +3,13 @@ import multiprocessing
 from textwrap import indent
 from .typing import (
     Mapping,
-    Sequence
+    Sequence,
+    Generic,
+    TypeVar
 )
+
+_ArgsT = TypeVar('_ArgsT')
+_KwdsT = TypeVar('_KwdsT')
 
 #
 # dict and list formatter
@@ -75,10 +80,10 @@ class Count:
         return value
 
 
-class FuncArgs:
+class FuncParams(Generic[_ArgsT, _KwdsT]):
     """
-    Pack multiple func arguments in a single object.
+    Pack multiple function params in a single object.
     """
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: _ArgsT, **kwargs: _KwdsT) -> None:
         self.args = args
         self.kwargs = kwargs
