@@ -1210,10 +1210,10 @@ class ReadonlyAttr(metaclass=_ReadonlyAttrMetaclass):
     # the current class.
     readonly_attr__: Tuple[str, ...] = ()
     readonly_attr_computed__: FrozenSet[str] = frozenset()
-    # ``nothing_readonly__``, ``empty_readonly__``: 
-    # Whether empty value or ``NOTHING`` value of a specified attribute 
+    # ``missing_readonly__``, ``empty_readonly__``: 
+    # Whether empty value or ``MISSING`` value of a specified attribute 
     # is still readonly.
-    nothing_readonly__: bool = False
+    missing_readonly__: bool = False
     empty_readonly__: bool = False
     
     def __setattr__(self, __name: str, __value: Any) -> None:
@@ -1243,10 +1243,10 @@ class ReadonlyAttr(metaclass=_ReadonlyAttrMetaclass):
         hasattr__ = hasattr(self, __name)
         attr__ = getattr(self, __name, MISSING)
 
-        # Whether empty value or ``NOTHING`` value is readonly.
+        # Whether empty value or ``MISSING`` value is readonly.
         if (
             (not hasattr__ and not self.empty_readonly__) or 
-            (attr__ is NOTHING and not self.nothing_readonly__)
+            (attr__ is MISSING and not self.missing_readonly__)
         ):
             return __mod_func()
         else:

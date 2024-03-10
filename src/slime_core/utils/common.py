@@ -12,7 +12,9 @@ from .typing import (
     Hashable,
     Set,
     Type,
-    Union
+    Union,
+    MISSING,
+    Missing
 )
 from .base import (
     ReadonlyAttr
@@ -57,15 +59,25 @@ class FuncParams(Generic[_ArgsT, _KwdsT]):
 class HashCache(ReadonlyAttr):
     """
     Cache the hash value of the given hashable item in order to improve 
-    efficiency. NOTE: ``hashable`` and ``hash_value`` are set as readonly 
-    attributes to maintain the consistency.
+    efficiency.
+    
+    NOTE: ``hashable`` and ``hash_value`` are set as readonly attributes 
+    to maintain the consistency.
+    
+    NOTE: If the ``hashable`` param is actually not hashable, then the 
+    ``hash_value`` will be set to ``MISSING``, and any attempt to get 
+    the hash value of ``HashCache`` will raise a ``TypeError``.
     """
     __slots__ = ('hashable', 'hash_value')
     readonly_attr__ = ('hashable', 'hash_value')
+    missing_readonly__ = True
     
     def __init__(self, hashable: Hashable) -> None:
         self.hashable = hashable
-        self.hash_value = hash(hashable)
+        try:
+            self.hash_value = hash(hashable)
+        except TypeError:
+            self.hash_value = MISSING
     
     def __hash__(self) -> int:
         return self.hash_value
@@ -77,7 +89,7 @@ def make_params_hashable(
     kwd_mark: Hashable = object(),
     type_mark: Hashable = object(),
     fast_types: Set[Type] = {int, str}
-) -> Union[Hashable, HashCache]:
+) -> Union[Hashable, HashCache, Missing]:
     """
     Make the function params a hashable item and return. If there is 
     only a single argument and its type is in ``fast_types``, directly 
@@ -87,6 +99,9 @@ def make_params_hashable(
     
     NOTE: ``kwd_mark`` and ``type_mark`` are two newly created object so 
     that they are distinguishable from any given func params.
+    
+    NOTE: If the ``func_params`` contains non-hashable item (i.e., it is
+    NOT hashable), then return ``MISSING``.
     """
     args = func_params.args
     kwargs = func_params.kwargs
@@ -106,7 +121,10 @@ def make_params_hashable(
         # If fast type, return the value itself.
         return hashable[0]
     # Return ``HashCache`` to improve efficiency.
-    return HashCache(tuple(hashable))
+    hash_cache = HashCache(tuple(hashable))
+    return (
+        hash_cache if hash_cache.hash_value is not MISSING else MISSING
+    )
 
 #
 # dict and list formatter

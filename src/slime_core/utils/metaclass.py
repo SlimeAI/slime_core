@@ -37,6 +37,23 @@ def Metaclasses(*args: Type[type], **kwargs) -> Type[type]:
     return MergedMetaclass
 
 
+def create_metaclass_adapter(
+    *metaclasses: Type,
+    **kwargs
+) -> Type:
+    """
+    Create a new metaclass adapter with given ``metaclasses`` and ``kwargs``.
+    """
+    class MetaclassAdapter(*metaclasses, **kwargs):
+        # ``metaclass_adapter__`` works as an indicator attribute that denotes the 
+        # metaclass simply inherits multiple metaclasses and does nothing else.
+        metaclass_adapter__ = True
+        def __str__(self) -> str: return f'{super().__str__()}{metaclasses}'
+        def __repr__(self) -> str: return f'{super().__repr__()}{metaclasses}'
+    
+    return MetaclassAdapter
+
+
 def is_metaclass_adapter(cls: Type) -> bool:
     """
     Check if a class is a metaclass adapter. Return ``True`` if and only if ``cls`` has attribute 
