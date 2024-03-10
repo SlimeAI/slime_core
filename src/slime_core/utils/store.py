@@ -11,9 +11,9 @@ from .typing import (
 from .base import (
     Base,
     AttrObservable,
-    ItemAttrBinding,
-    Singleton
+    ItemAttrBinding
 )
+from .metabase import Singleton
 from .decorator import RemoveOverload
 import threading
 import os

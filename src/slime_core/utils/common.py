@@ -1,12 +1,12 @@
 """
 Common utils in slime_core.
 """
-import threading
-import multiprocessing
-from textwrap import indent
+#
+# NOTE: The below module block is used to help ``Metaclasses`` create 
+# new classes, and it should be at the beginning of the file in order 
+# to avoid circular imports.
+#
 from .typing import (
-    Mapping,
-    Sequence,
     Generic,
     TypeVar,
     Hashable,
@@ -16,35 +16,12 @@ from .typing import (
     MISSING,
     Missing
 )
-from .base import (
+from .metabase import (
     ReadonlyAttr
 )
 
 _ArgsT = TypeVar('_ArgsT')
 _KwdsT = TypeVar('_KwdsT')
-
-
-class Count:
-    """
-    Count times of variable-get. It can be used to generate unique ids 
-    of objects (e.g., handler ids can be automatically generated if 
-    they are not specified by the users). The class uses a thread lock 
-    and a process lock to make the generated value globally unique.
-    """
-    def __init__(self):
-        super().__init__()
-        self.value = 0
-        self.__t_lock = threading.Lock()
-        self.__p_lock = multiprocessing.Lock()
-
-    def __set__(self, *_):
-        pass
-
-    def __get__(self, *_):
-        with self.__t_lock, self.__p_lock:
-            value = self.value
-            self.value += 1
-        return value
 
 
 class FuncParams(Generic[_ArgsT, _KwdsT]):
@@ -125,6 +102,42 @@ def make_params_hashable(
     return (
         hash_cache if hash_cache.hash_value is not MISSING else MISSING
     )
+
+#
+# NOTE: Other module blocks should be placed below (including the related 
+# imports) in order to avoid possible circular imports.
+#
+
+import threading
+import multiprocessing
+from textwrap import indent
+from .typing import (
+    Mapping,
+    Sequence
+)
+
+
+class Count:
+    """
+    Count times of variable-get. It can be used to generate unique ids 
+    of objects (e.g., handler ids can be automatically generated if 
+    they are not specified by the users). The class uses a thread lock 
+    and a process lock to make the generated value globally unique.
+    """
+    def __init__(self):
+        super().__init__()
+        self.value = 0
+        self.__t_lock = threading.Lock()
+        self.__p_lock = multiprocessing.Lock()
+
+    def __set__(self, *_):
+        pass
+
+    def __get__(self, *_):
+        with self.__t_lock, self.__p_lock:
+            value = self.value
+            self.value += 1
+        return value
 
 #
 # dict and list formatter

@@ -25,7 +25,7 @@ from .typing import (
 )
 from itertools import filterfalse, chain
 if TYPE_CHECKING:
-    from .base import ReadonlyAttr
+    from .metabase import ReadonlyAttr
 
 
 def create_metaclass_adapter(
@@ -118,29 +118,11 @@ class _ReadonlyAttrMetaclass(type):
         cls.readonly_attr_computed__ = frozenset(readonly_attr_computed_set)
         return cls
 
-
-def Metaclasses(
-    *metaclasses: Union[Type, Pass],
-    strict: bool = True,
-    meta_kwargs: Union[Dict[str, Any], Missing] = MISSING
-):
-    """
-    Returns a newly created ``MergedMetaclass`` that inherits all the specified metaclasses 
-    as well as ``MetaclassAdapter``. It makes the adaptation of metaclasses convenient , 
-    which does not need the user manually define a new metaclass.
-    
-    NOTE: This function only applies when each of the metaclasses to be adapted is a ``class`` 
-    rather than a ``function``. Note that ``class Example(metaclass=func)`` is also accepted 
-    by the Python interpreter, but it doesn't apply here. If you want to make the ``func`` 
-    compatible with it, you can define a new metaclass and call the ``func`` in the ``__new__`` 
-    method.
-    """
-    return MetaclassResolver.make_func(
-        *metaclasses,
-        strict=strict,
-        meta_kwargs=meta_kwargs
-    )
-
+#
+# Automatically make compatible metaclasses in multiple inheritance scenarios.
+# NOTE: This module block should be put at the end of the file in order to avoid 
+# circular imports.
+#
 
 class MetaclassResolver:
     
@@ -156,6 +138,9 @@ class MetaclassResolver:
         strict: bool = True,
         meta_kwargs: Union[Dict[str, Any], Missing] = MISSING
     ) -> Type:
+        """
+        Resolve a proper metaclass with given ``bases`` and ``metaclasses``.
+        """
         # Get the metaclass of each base class.
         meta_bases = (type(base) for base in bases)
         # Get the minimal meta bases.
@@ -319,3 +304,26 @@ class MetaclassResolver:
         return (
             __cls is not PASS
         )
+
+
+def Metaclasses(
+    *metaclasses: Union[Type, Pass],
+    strict: bool = True,
+    meta_kwargs: Union[Dict[str, Any], Missing] = MISSING
+):
+    """
+    Returns a newly created ``MergedMetaclass`` that inherits all the specified metaclasses 
+    as well as ``MetaclassAdapter``. It makes the adaptation of metaclasses convenient , 
+    which does not need the user manually define a new metaclass.
+    
+    NOTE: This function only applies when each of the metaclasses to be adapted is a ``class`` 
+    rather than a ``function``. Note that ``class Example(metaclass=func)`` is also accepted 
+    by the Python interpreter, but it doesn't apply here. If you want to make the ``func`` 
+    compatible with it, you can define a new metaclass and call the ``func`` in the ``__new__`` 
+    method.
+    """
+    return MetaclassResolver.make_func(
+        *metaclasses,
+        strict=strict,
+        meta_kwargs=meta_kwargs
+    )
