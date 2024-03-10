@@ -125,6 +125,10 @@ class _ReadonlyAttrMetaclass(type):
 #
 
 class MetaclassResolver:
+    """
+    Resolve a proper metaclass that is compatible with both user specified metaclasses and 
+    the metaclasses of the bases. Use a cache dict to improve performance.
+    """
     
     # A dict that stores metaclass adapters with tuple of bases and kwargs as the dict key.
     metaclass_adapter_dict__: Dict[Any, Type] = {}
@@ -154,6 +158,18 @@ class MetaclassResolver:
             meta_bases,
             pure_metaclasses
         )
+        
+        equivalent_metaclasses = resolve_minimal_classes(
+            meta_bases + pure_metaclasses
+        )
+        if len(equivalent_metaclasses) == 0:
+            # If no metaclasses can be found, then directly return ``type``.
+            return type
+        elif len(equivalent_metaclasses) == 1:
+            # If the 'most derived class' can be automatically found, then 
+            # directly return it.
+            return equivalent_metaclasses[0]
+        
         if strict:
             # Resolve all the non-adapter metaclasses that should be specified 
             # in ``metaclasses``.
@@ -312,15 +328,15 @@ def Metaclasses(
     meta_kwargs: Union[Dict[str, Any], Missing] = MISSING
 ):
     """
-    Returns a newly created ``MergedMetaclass`` that inherits all the specified metaclasses 
-    as well as ``MetaclassAdapter``. It makes the adaptation of metaclasses convenient , 
-    which does not need the user manually define a new metaclass.
+    Return a proper metaclass that is compatible with all the user specified ``metaclasses`` 
+    as well as the metaclasses of the bases. It makes the adaptation of metaclasses convenient, 
+    which does not need the user manually define a new sub metaclass.
     
     NOTE: This function only applies when each of the metaclasses to be adapted is a ``class`` 
     rather than a ``function``. Note that ``class Example(metaclass=func)`` is also accepted 
     by the Python interpreter, but it doesn't apply here. If you want to make the ``func`` 
     compatible with it, you can define a new metaclass and call the ``func`` in the ``__new__`` 
-    method.
+    method of the metaclass.
     """
     return MetaclassResolver.make_func(
         *metaclasses,

@@ -378,7 +378,9 @@ def resolve_minimal_classes(__classes: Iterable[Type]) -> Tuple[Type, ...]:
     The original order of 'minimal classes' is kept. If multiple same classes exist in the 
     given class iterable, the first occurrence is kept.
     
-    TODO: efficiency of the method can be optimized through pruning.
+    NOTE: We use a two-level loop rather than building a ``mro`` set (which may be faster) to 
+    check the subclasses, because some virtual classes (e.g., classes using ``ABC.register``) 
+    DO NOT follow the ``mro`` mechanism.
     """
     # NOTE: should create a new tuple of ``__classes``, because some iterable items DO NOT 
     # support iterating multiple times.
@@ -410,6 +412,10 @@ def class_difference(__x_iterable: Iterable[Type], __y_iterable: Iterable[Type])
     ``__x_iterable - __y_iterable`` similar to the set difference but consider the inheritance 
     relationship and keep the iterable order. In addition, elements won't be deduplicated like 
     a set.
+    
+    NOTE: We use a two-level loop rather than building a ``mro`` set (which may be faster) to 
+    check the subclasses, because some virtual classes (e.g., classes using ``ABC.register``) 
+    DO NOT follow the ``mro`` mechanism.
     
     Example:
     
