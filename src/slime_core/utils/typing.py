@@ -370,17 +370,13 @@ def resolve_bases(__cls: Type) -> Tuple[Type, ...]:
         mro_classes = list(filter(lambda _cls: _cls not in base_mro_set, mro_classes))
     return tuple(bases)
 
+#
+# Resolve minimal classes.
+#
 
-def resolve_minimal_classes(__classes: Iterable[Type]) -> Tuple[Type, ...]:
+def _resolve_minimal_classes_through_subclass(__classes: Iterable[Type]) -> Tuple[Type, ...]:
     """
-    Resolve the 'minimal classes' of the given class iterable. 'minimal classes' denotes that 
-    any of the classes which do not have a subclass is contained in the tuple, otherwise not. 
-    The original order of 'minimal classes' is kept. If multiple same classes exist in the 
-    given class iterable, the first occurrence is kept.
-    
-    NOTE: We use a two-level loop rather than building a ``mro`` set (which may be faster) to 
-    check the subclasses, because some virtual classes (e.g., classes using ``ABC.register``) 
-    DO NOT follow the ``mro`` mechanism.
+    Implement ``resolve_minimal_classes`` through ``issubclass`` method.
     """
     # NOTE: should create a new tuple of ``__classes``, because some iterable items DO NOT 
     # support iterating multiple times.
@@ -406,31 +402,68 @@ def resolve_minimal_classes(__classes: Iterable[Type]) -> Tuple[Type, ...]:
     return tuple(minimal_classes)
 
 
-def class_difference(__x_iterable: Iterable[Type], __y_iterable: Iterable[Type]) -> Tuple[Type, ...]:
+def _resolve_minimal_classes_through_mro(__classes: Iterable[Type]) -> Tuple[Type, ...]:
     """
-    Given two iterable class items ``__x_iterable`` and ``__y_iterable``, compute 
-    ``__x_iterable - __y_iterable`` similar to the set difference but consider the inheritance 
-    relationship and keep the iterable order. In addition, elements won't be deduplicated like 
-    a set.
+    Implement ``resolve_minimal_classes`` through ``mro`` method.
     
-    NOTE: We use a two-level loop rather than building a ``mro`` set (which may be faster) to 
-    check the subclasses, because some virtual classes (e.g., classes using ``ABC.register``) 
-    DO NOT follow the ``mro`` mechanism.
+    NOTE: This implementation ignores the virtual subclasses (e.g., classes using 
+    ``ABC.register``), and it will be faster when number of ``__classes`` is large.
+    """
+    # NOTE: should create a new tuple of ``__classes``, because some iterable items DO NOT 
+    # support iterating multiple times.
+    __classes = tuple(__classes)
+    # Build a super class set that contains all the super classes of ``__classes`` (excluding 
+    # themselves).
+    super_class_set: Set[Type] = set()
+    for cls in __classes:
+        super_class_set.update(resolve_mro(cls)[1:])
     
-    Example:
+    minimal_classes: List[Type] = []
+    for cls in __classes:
+        # Multiple same class occurrences.
+        if cls in minimal_classes:
+            continue
+        
+        if cls not in super_class_set:
+            minimal_classes.append(cls)
+    return tuple(minimal_classes)
+
+
+_RESOLVE_MINIMAL_CLASSES_DICT = {
+    'subclass': _resolve_minimal_classes_through_subclass,
+    'mro': _resolve_minimal_classes_through_mro
+}
+
+
+def resolve_minimal_classes(
+    __classes: Iterable[Type],
+    *,
+    algo: str = 'subclass'
+) -> Tuple[Type, ...]:
+    """
+    Resolve the 'minimal classes' of the given class iterable. 'minimal classes' denotes that 
+    any of the classes which do not have a subclass is contained in the tuple, otherwise not. 
+    The original order of 'minimal classes' is kept. If multiple same classes exist in the 
+    given class iterable, the first occurrence is kept.
     
-    ```Python
-    class A: pass
+    Different ``algo`` values correspond to different implementations:
+    
+    - subclass: compare the classes using ``issubclass`` and a two-level loop.
+    - mro: compare the classes using a super class mro set. May be faster when the number of 
+    classes is large, but ignore the virtual subclasses which do not follow the mro mechanism.
+    """
+    return _RESOLVE_MINIMAL_CLASSES_DICT[algo](__classes)
 
-    class B(A): pass
+#
+# Class difference.
+#
 
-    class C: pass
-
-    class D(C): pass
-
-    # output: (<class '__main__.D'>, <class '__main__.D'>)
-    print(class_difference((A, C, D, D), (B, C)))
-    ```
+def _class_difference_through_subclass(
+    __x_iterable: Iterable[Type],
+    __y_iterable: Iterable[Type]
+) -> Tuple[Type, ...]:
+    """
+    Implement ``class_difference`` through ``issubclass`` method.
     """
     # NOTE: should create new tuples of ``__x_iterable`` and ``__y_iterable``, because some 
     # iterable items DO NOT support iterating multiple times.
@@ -448,3 +481,62 @@ def class_difference(__x_iterable: Iterable[Type], __y_iterable: Iterable[Type])
         if is_remained:
             result.append(x)
     return tuple(result)
+
+
+def _class_difference_through_mro(
+    __x_iterable: Iterable[Type],
+    __y_iterable: Iterable[Type]
+) -> Tuple[Type, ...]:
+    """
+    Implement ``class_difference`` through ``mro`` method.
+    
+    NOTE: This implementation ignores the virtual subclasses (e.g., classes using 
+    ``ABC.register``), and it will be faster when number of ``__y_iterable`` is large.
+    """
+    y_mro_set: Set[Type] = set()
+    for y in __y_iterable:
+        y_mro_set.update(resolve_mro(y))
+    
+    return tuple(filter(lambda x: x not in y_mro_set, __x_iterable))
+
+
+_CLASS_DIFFERENCE_DICT = {
+    'subclass': _class_difference_through_subclass,
+    'mro': _class_difference_through_mro
+}
+
+
+def class_difference(
+    __x_iterable: Iterable[Type],
+    __y_iterable: Iterable[Type],
+    *,
+    algo: str = 'subclass'
+) -> Tuple[Type, ...]:
+    """
+    Given two iterable class items ``__x_iterable`` and ``__y_iterable``, compute 
+    ``__x_iterable - __y_iterable`` similar to the set difference but consider the inheritance 
+    relationship and keep the iterable order. In addition, elements won't be deduplicated like 
+    a set.
+    
+    Different ``algo`` values correspond to different implementations:
+    
+    - subclass: compare the classes using ``issubclass`` and a two-level loop.
+    - mro: compare the classes using a class mro set. May be faster when the number of classes 
+    is large, but ignore the virtual subclasses which do not follow the mro mechanism.
+    
+    Example:
+    
+    ```Python
+    class A: pass
+
+    class B(A): pass
+
+    class C: pass
+
+    class D(C): pass
+
+    # output: (<class '__main__.D'>, <class '__main__.D'>)
+    print(class_difference((A, C, D, D), (B, C)))
+    ```
+    """
+    return _CLASS_DIFFERENCE_DICT[algo](__x_iterable, __y_iterable)
