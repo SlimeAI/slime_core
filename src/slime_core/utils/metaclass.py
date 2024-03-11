@@ -175,7 +175,7 @@ class MetaclassResolver:
             # in ``metaclasses``.
             meta_bases = cls.resolve_required_and_adapters(meta_bases, pure_metaclasses)
         final_metaclasses = cls.resolve_final_metaclasses(meta_bases, metaclasses)
-        return cls.load_metaclass(
+        return cls.load_metaclass_adapter(
             final_metaclasses,
             meta_kwargs if meta_kwargs is not MISSING else {}
         )
@@ -262,7 +262,7 @@ class MetaclassResolver:
         return final_metaclasses
     
     @classmethod
-    def load_metaclass(
+    def load_metaclass_adapter(
         cls,
         final_metaclasses: Tuple[Type, ...],
         meta_kwargs: Dict[str, Any]
