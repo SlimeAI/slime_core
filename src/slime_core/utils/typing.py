@@ -381,25 +381,24 @@ def _resolve_minimal_classes_through_subclass(__classes: Iterable[Type]) -> Tupl
     # NOTE: should create a new tuple of ``__classes``, because some iterable items DO NOT 
     # support iterating multiple times.
     __classes = tuple(__classes)
-    minimal_classes: List[Type] = []
-    for cls in __classes:
-        # Multiple same class occurrences.
-        if cls in minimal_classes:
-            continue
+    # For class deduplication.
+    seen_classes: Set[Type] = set()
+    def _filter_func(cls: Type) -> bool:
+        if cls in seen_classes:
+            return False
         
-        is_minimal_class = True
         for other_cls in __classes:
             if (
                 issubclass(other_cls, cls) and 
                 cls is not other_cls
             ):
                 # Not the 'minimal class'.
-                is_minimal_class = False
-                break
-        
-        if is_minimal_class:
-            minimal_classes.append(cls)
-    return tuple(minimal_classes)
+                return False
+        # For deduplication.
+        seen_classes.add(cls)
+        return True
+    
+    return tuple(filter(_filter_func, __classes))
 
 
 def _resolve_minimal_classes_through_mro(__classes: Iterable[Type]) -> Tuple[Type, ...]:
@@ -418,15 +417,14 @@ def _resolve_minimal_classes_through_mro(__classes: Iterable[Type]) -> Tuple[Typ
     for cls in __classes:
         super_class_set.update(resolve_mro(cls)[1:])
     
-    minimal_classes: List[Type] = []
-    for cls in __classes:
-        # Multiple same class occurrences.
-        if cls in minimal_classes:
-            continue
-        
-        if cls not in super_class_set:
-            minimal_classes.append(cls)
-    return tuple(minimal_classes)
+    def _filter_func(cls: Type) -> bool:
+        result = (cls not in super_class_set)
+        # NOTE: Add ``cls`` into ``super_class_set`` 
+        # to deduplicate the following classes.
+        super_class_set.add(cls)
+        return result
+    
+    return tuple(filter(_filter_func, __classes))
 
 
 _RESOLVE_MINIMAL_CLASSES_DICT = {
@@ -465,22 +463,19 @@ def _class_difference_through_subclass(
     """
     Implement ``class_difference`` through ``issubclass`` method.
     """
-    # NOTE: should create new tuples of ``__x_iterable`` and ``__y_iterable``, because some 
-    # iterable items DO NOT support iterating multiple times.
-    __x_iterable = tuple(__x_iterable)
+    # NOTE: should create new tuples of ``__y_iterable``, because some iterable 
+    # items DO NOT support iterating multiple times.
     __y_iterable = tuple(__y_iterable)
-    result = []
-    for x in __x_iterable:
-        is_remained = True
+    
+    def _filter_func(x: Type) -> bool:
         for y in __y_iterable:
             if issubclass(y, x):
                 # If ``y`` is exactly ``x`` or the subclass of ``x``, then ``x`` 
                 # should be discarded.
-                is_remained = False
-                break
-        if is_remained:
-            result.append(x)
-    return tuple(result)
+                return False
+        return True
+    
+    return tuple(filter(_filter_func, __x_iterable))
 
 
 def _class_difference_through_mro(
