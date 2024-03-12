@@ -2,7 +2,6 @@
 Core logger module.
 """
 import logging
-from slime_core.utils.base import BaseDict
 from slime_core.utils.typing import (
     Any,
     NOTHING
@@ -43,6 +42,9 @@ class set_core_logger:
 #
 # Logger Func Arg Adapter
 #
+
+from slime_core.utils.base import BaseDict
+
 
 class LoggerKwargs(BaseDict[str, Any]):
     

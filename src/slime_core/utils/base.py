@@ -1,25 +1,124 @@
+"""
+slime_core util base classes.
+"""
+#
+# NOTE: ``BaseDict`` should be placed at the beginning of the file in order 
+# to avoid circular import error (caused by ``slime_core.logging.logger``).
+#
+from .typing import (
+    TypeVar,
+    MutableMapping,
+    Generic,
+    Union,
+    Dict,
+    Iterable,
+    Tuple,
+    NoneOrNothing,
+    overload,
+    Iterator
+)
+from .abcs.base import (
+    CoreBaseDict
+)
+from .metabase import (
+    InitOnceBase
+)
+from .metaclass import (
+    Metaclasses,
+    InitOnceMetaclass
+)
+from .decorator import (
+    InitOnce
+)
+from abc import ABCMeta
+
+_KT = TypeVar("_KT")
+_VT = TypeVar("_VT")
+
+#
+# Base Dict
+#
+
+class BaseDict(
+    CoreBaseDict[_KT, _VT],
+    MutableMapping[_KT, _VT],
+    InitOnceBase,
+    Generic[_KT, _VT],
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+):
+
+    @InitOnce
+    def __init__(
+        self,
+        __dict_like: Union[Dict[_KT, _VT], Iterable[Tuple[_KT, _VT]], NoneOrNothing] = None,
+        **kwargs
+    ):
+        self.__dict: Dict[_KT, _VT] = {}
+        if is_none_or_nothing(__dict_like):
+            __dict_like = {}
+        # Use ``self.update`` here to make the initialization process controllable.
+        # Otherwise, if ``self.__dict = dict(__dict_like, **kwargs)`` is used here, the initialization process won't be restricted by the user-defined operations.
+        self.update(__dict_like, **kwargs)
+
+    def set_dict__(self, __dict: Dict[_KT, _VT]) -> None:
+        self.__dict = __dict
+
+    def get_dict__(self) -> Dict[_KT, _VT]:
+        return self.__dict
+    
+    @overload
+    def __getitem__(self, __key: _KT) -> _VT: pass
+    @overload
+    def __setitem__(self, __key: _KT, __value: _VT) -> None: pass
+    @overload
+    def __delitem__(self, __key: _KT) -> None: pass
+    @overload
+    def __iter__(self) -> Iterator[_KT]: pass
+    @overload
+    def __len__(self) -> int: pass
+    
+    def __getitem__(self, __key):
+        return self.__dict[__key]
+    
+    def __setitem__(self, __key, __value):
+        self.__dict[__key] = __value
+    
+    def __delitem__(self, __key):
+        del self.__dict[__key]
+    
+    def __iter__(self):
+        return iter(self.__dict)
+    
+    def __len__(self):
+        return len(self.__dict)
+    
+    def __str__(self) -> str:
+        classname=str(self.__class__.__name__)
+        _id=str(hex(id(self)))
+        _dict=str(self.__dict)
+        return f'{classname}<{_id}>({_dict})'
+
+#
+# NOTE: Other modules should be placed bellow.
+#
+
+import re
 import traceback
+from contextlib import ContextDecorator, ExitStack, contextmanager
+from functools import partial
+from types import TracebackType
 from .typing import (
     Any,
-    Dict,
     List,
-    Tuple,
-    Union,
     Sequence,
     MutableSequence,
-    MutableMapping,
-    Iterable,
-    Iterator,
-    TypeVar,
     Generic,
-    overload,
     SupportsIndex,
     Type,
     Generator,
     Callable,
     NOTHING,
     Nothing,
-    NoneOrNothing,
     Pass,
     PASS,
     is_none_or_nothing,
@@ -31,158 +130,19 @@ from .typing import (
     STOP
 )
 from .decorator import (
-    DecoratorCall,
-    InitOnce
+    DecoratorCall
 )
-from .metaclass import (
-    InitOnceMetaclass,
-    Metaclasses
-)
-from .metabase import InitOnceBase
 from .abcs.base import (
     CoreBaseList,
     CoreBiListItem,
     CoreMutableBiListItem,
     CoreBiList,
-    CoreCompositeStructure,
-    CoreBaseDict
+    CoreCompositeStructure
 )
-from abc import ABCMeta
-from contextlib import ContextDecorator, ExitStack, contextmanager
-from functools import partial
-from types import TracebackType
-import re
+import slime_core.logging.logger as logger
 
 # TypeVars
 _T = TypeVar("_T")
-_KT = TypeVar("_KT")
-_VT = TypeVar("_VT")
-
-#
-# Scoped Attribute
-#
-
-class ScopedAttr:
-    
-    def __init__(self) -> None: pass
-    
-    def assign__(self, **attr_assign) -> "ScopedAttrAssign":
-        return ScopedAttrAssign(self, attr_assign)
-    
-    def restore__(self, *attrs: str) -> "ScopedAttrRestore":
-        return ScopedAttrRestore(self, attrs)
-
-#
-# ItemAttrBinding
-#
-
-class ItemAttrSetBinding:
-    
-    def __setitem__(self, __name: str, __value: Any) -> None:
-        return setattr(self, __name, __value)
-
-
-class ItemAttrGetBinding:
-    
-    def __getitem__(self, __name: str) -> Any:
-        return getattr(self, __name)
-
-
-class ItemAttrDelBinding:
-    
-    def __delitem__(self, __name: str) -> None:
-        return delattr(self, __name)
-
-
-class ItemAttrBinding(
-    ItemAttrSetBinding,
-    ItemAttrGetBinding,
-    ItemAttrDelBinding
-):
-    """
-    """
-    pass
-
-#
-# Base
-#
-
-class Base(ScopedAttr, ItemAttrBinding, InitOnceBase):
-    """
-    Base class, making its subclasses be able to use '[]' operations(just like python dict).
-    Return 'Nothing' if the object does not have the property being retrieved, without throwing Errors.
-    What's more, it allows its subclasses assign properties using a dict.
-    """
-
-    @InitOnce
-    def __init__(self) -> None:
-        ScopedAttr.__init__(self)
-        ItemAttrBinding.__init__(self)
-
-    def from_kwargs__(self, **kwargs):
-        self.from_dict__(kwargs)
-
-    def from_dict__(self, __dict: Dict[str, Any]):
-        """assign properties to the object using a dict.
-        Args:
-            kwargs (Dict): property dict.
-        """
-        self.__dict__.update(__dict)
-
-    def check__(self, item: str):
-        """check whether the object has a specific attribute.
-        dot operator supported.
-        Args:
-            items (str): _description_
-        """
-        attrs = item.split('.')
-        temp = self
-        for attr in attrs:
-            try:
-                temp = temp[attr]
-                # if the value is NOTHING, then return False directly.
-                if temp is NOTHING:
-                    return False
-            except Exception:
-                # output error information
-                self.process_exc__()
-                return False
-        return True
-
-    def hasattr__(self, __name: str) -> bool:
-        return str(__name) in self.__dict__
-
-    @staticmethod
-    def process_exc__():
-        from slime_core.logging.logger import core_logger
-        # output error
-        core_logger.error(
-            'Python exception raised:\n' +
-            traceback.format_exc()
-        )
-        return NOTHING
-
-    def pop__(self, __name: str):
-        attr = getattr(self, __name)
-        delattr(self, __name)
-        return attr
-
-    def __getattr__(self, *_):
-        return NOTHING
-
-    def __delattr__(self, __name: str) -> None:
-        # safe delete
-        try:
-            return super().__delattr__(__name)
-        except AttributeError:
-            return
-    
-    def __str__(self) -> str:
-        from .common import dict_to_key_value_str
-        classname=str(self.__class__.__name__)
-        _id=str(hex(id(self)))
-        _dict=dict_to_key_value_str(self.__dict__)
-        return f'{classname}<{_id}>({_dict})'
 
 #
 # Base List
@@ -306,9 +266,8 @@ class BiListItem(
     def set_parent__(self, parent: _BiListT) -> None:
         prev_parent = self.get_parent__()
         if not is_none_or_nothing(prev_parent) and parent is not prev_parent:
-            from slime_core.logging.logger import core_logger
             # duplicate parent
-            core_logger.warning(
+            logger.core_logger.warning(
                 f'BiListItem ``{str(self)}`` has already had a parent, but another parent is set. '
                 'This may be because you add a single BiListItem object to multiple BiLists '
                 'and may cause some inconsistent problems.'
@@ -321,14 +280,16 @@ class BiListItem(
     def get_verified_parent__(self) -> Union[_BiListT, Nothing]:
         parent = self.get_parent__()
         if parent is NOTHING:
-            from slime_core.logging.logger import core_logger
             # root node
-            core_logger.warning(f'BiListItem ``{str(self)}`` does not have a parent.')
+            logger.core_logger.warning(
+                f'BiListItem ``{str(self)}`` does not have a parent.'
+            )
             return NOTHING
         if self not in parent:
-            from slime_core.logging.logger import core_logger
             # unmatched parent
-            core_logger.warning(f'BiListItem ``{str(self)}`` is not contained in its specified parent.')
+            logger.core_logger.warning(
+                f'BiListItem ``{str(self)}`` is not contained in its specified parent.'
+            )
             self.del_parent__()
             return NOTHING
         return parent
@@ -420,66 +381,128 @@ class BiList(BaseList[_BiListItemT], CoreBiList[_BiListItemT], Generic[_BiListIt
         return super().insert(__index, __item)
 
 #
-# Base Dict
+# Scoped Attribute
 #
 
-class BaseDict(
-    CoreBaseDict[_KT, _VT],
-    MutableMapping[_KT, _VT],
-    InitOnceBase,
-    Generic[_KT, _VT],
-    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+class ScopedAttr:
+    
+    def __init__(self) -> None: pass
+    
+    def assign__(self, **attr_assign) -> "ScopedAttrAssign":
+        return ScopedAttrAssign(self, attr_assign)
+    
+    def restore__(self, *attrs: str) -> "ScopedAttrRestore":
+        return ScopedAttrRestore(self, attrs)
+
+#
+# ItemAttrBinding
+#
+
+class ItemAttrSetBinding:
+    
+    def __setitem__(self, __name: str, __value: Any) -> None:
+        return setattr(self, __name, __value)
+
+
+class ItemAttrGetBinding:
+    
+    def __getitem__(self, __name: str) -> Any:
+        return getattr(self, __name)
+
+
+class ItemAttrDelBinding:
+    
+    def __delitem__(self, __name: str) -> None:
+        return delattr(self, __name)
+
+
+class ItemAttrBinding(
+    ItemAttrSetBinding,
+    ItemAttrGetBinding,
+    ItemAttrDelBinding
 ):
+    """
+    """
+    pass
+
+#
+# Base
+#
+
+class Base(ScopedAttr, ItemAttrBinding, InitOnceBase):
+    """
+    Base class, making its subclasses be able to use '[]' operations(just like python dict).
+    Return 'Nothing' if the object does not have the property being retrieved, without throwing Errors.
+    What's more, it allows its subclasses assign properties using a dict.
+    """
 
     @InitOnce
-    def __init__(
-        self,
-        __dict_like: Union[Dict[_KT, _VT], Iterable[Tuple[_KT, _VT]], NoneOrNothing] = None,
-        **kwargs
-    ):
-        self.__dict: Dict[_KT, _VT] = {}
-        if is_none_or_nothing(__dict_like):
-            __dict_like = {}
-        # Use ``self.update`` here to make the initialization process controllable.
-        # Otherwise, if ``self.__dict = dict(__dict_like, **kwargs)`` is used here, the initialization process won't be restricted by the user-defined operations.
-        self.update(__dict_like, **kwargs)
+    def __init__(self) -> None:
+        ScopedAttr.__init__(self)
+        ItemAttrBinding.__init__(self)
 
-    def set_dict__(self, __dict: Dict[_KT, _VT]) -> None:
-        self.__dict = __dict
+    def from_kwargs__(self, **kwargs):
+        self.from_dict__(kwargs)
 
-    def get_dict__(self) -> Dict[_KT, _VT]:
-        return self.__dict
-    
-    @overload
-    def __getitem__(self, __key: _KT) -> _VT: pass
-    @overload
-    def __setitem__(self, __key: _KT, __value: _VT) -> None: pass
-    @overload
-    def __delitem__(self, __key: _KT) -> None: pass
-    @overload
-    def __iter__(self) -> Iterator[_KT]: pass
-    @overload
-    def __len__(self) -> int: pass
-    
-    def __getitem__(self, __key):
-        return self.__dict[__key]
-    
-    def __setitem__(self, __key, __value):
-        self.__dict[__key] = __value
-    
-    def __delitem__(self, __key):
-        del self.__dict[__key]
-    
-    def __iter__(self):
-        return iter(self.__dict)
-    
-    def __len__(self):
-        return len(self.__dict)
+    def from_dict__(self, __dict: Dict[str, Any]):
+        """assign properties to the object using a dict.
+        Args:
+            kwargs (Dict): property dict.
+        """
+        self.__dict__.update(__dict)
+
+    def check__(self, item: str):
+        """check whether the object has a specific attribute.
+        dot operator supported.
+        Args:
+            items (str): _description_
+        """
+        attrs = item.split('.')
+        temp = self
+        for attr in attrs:
+            try:
+                temp = temp[attr]
+                # if the value is NOTHING, then return False directly.
+                if temp is NOTHING:
+                    return False
+            except Exception:
+                # output error information
+                self.process_exc__()
+                return False
+        return True
+
+    def hasattr__(self, __name: str) -> bool:
+        return str(__name) in self.__dict__
+
+    @staticmethod
+    def process_exc__():
+        # output error
+        logger.core_logger.error(
+            'Python exception raised:\n' +
+            traceback.format_exc()
+        )
+        return NOTHING
+
+    def pop__(self, __name: str):
+        attr = getattr(self, __name)
+        delattr(self, __name)
+        return attr
+
+    def __getattr__(self, *_):
+        return NOTHING
+
+    def __delattr__(self, __name: str) -> None:
+        # safe delete
+        try:
+            return super().__delattr__(__name)
+        except AttributeError:
+            return
     
     def __str__(self) -> str:
+        from .common import dict_to_key_value_str
         classname=str(self.__class__.__name__)
         _id=str(hex(id(self)))
-        _dict=str(self.__dict)
+        _dict=dict_to_key_value_str(self.__dict__)
         return f'{classname}<{_id}>({_dict})'
 
 #
@@ -1075,8 +1098,7 @@ def AttrObserve(
         try:
             setattr(item, name, value)
         except Exception:
-            from slime_core.logging.logger import core_logger
-            core_logger.warning(
+            logger.core_logger.warning(
                 f'Set ``{name}`` attribute failed. Observe object: {str(item)}. '
                 'Please make sure it supports attribute set.'
             )
@@ -1119,8 +1141,7 @@ class ScopedAttrRestore(ContextDecorator, Generic[_T]):
                     # Remove previously non-existing attributes before the scope.
                     delattr(self.obj, attr)
             except Exception as e:
-                from slime_core.logging.logger import core_logger
-                core_logger.error(
+                logger.core_logger.error(
                     f'Restoring scoped attribute failed. Object: {str(self.obj)}, '
                     f'attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}'
                 )
@@ -1143,8 +1164,7 @@ class ScopedAttrAssign(ScopedAttrRestore[_T], Generic[_T]):
             try:
                 setattr(self.obj, attr, value)
             except Exception as e:
-                from slime_core.logging.logger import core_logger
-                core_logger.error(
+                logger.core_logger.error(
                     f'Assigning scoped attribute failed. Object: {str(self.obj)}, '
                     f'attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}'
                 )
