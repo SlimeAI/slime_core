@@ -22,14 +22,14 @@ from .metabase import (
 )
 
 _ArgsT = TypeVar('_ArgsT')
-_KwdsT = TypeVar('_KwdsT')
+_KwargsT = TypeVar('_KwargsT')
 
 
-class FuncParams(Generic[_ArgsT, _KwdsT]):
+class FuncParams(Generic[_ArgsT, _KwargsT]):
     """
     Pack multiple function params in a single object.
     """
-    def __init__(self, *args: _ArgsT, **kwargs: _KwdsT) -> None:
+    def __init__(self, *args: _ArgsT, **kwargs: _KwargsT) -> None:
         self.args = args
         self.kwargs = kwargs
 
@@ -85,7 +85,7 @@ class HashCache(ReadonlyAttr):
 def make_params_hashable(
     func_params: FuncParams[Hashable, Hashable],
     typed: bool = False,
-    kwd_mark: Hashable = object(),
+    kwarg_mark: Hashable = object(),
     type_mark: Hashable = object(),
     fast_types: Set[Type] = {int, str}
 ) -> Union[Hashable, HashCache, Missing]:
@@ -96,7 +96,7 @@ def make_params_hashable(
     of each param value is added in the hashable item and same values 
     with different types will be treated as different (e.g., 1 and 1.0). 
     
-    NOTE: ``kwd_mark`` and ``type_mark`` are two newly created object so 
+    NOTE: ``kwarg_mark`` and ``type_mark`` are two newly created object so 
     that they are distinguishable from any given func params.
     
     NOTE: If the ``func_params`` contains non-hashable item (i.e., it is
@@ -108,7 +108,7 @@ def make_params_hashable(
     # than tuple.
     hashable = list(args)
     if kwargs:
-        hashable.append(kwd_mark)
+        hashable.append(kwarg_mark)
         hashable.extend(kwargs.items())
     if typed:
         # Distinguish between different param types.

@@ -13,10 +13,10 @@ from abc import ABC, abstractmethod
 
 _ContextT = TypeVar("_ContextT")
 _ArgsT = TypeVar('_ArgsT')
-_KwdsT = TypeVar('_KwdsT')
+_KwargsT = TypeVar('_KwargsT')
 
 
-class CompileFuncParams(FuncParams[_ArgsT, _KwdsT], Generic[_ArgsT, _KwdsT]):
+class CompileFuncParams(FuncParams[_ArgsT, _KwargsT], Generic[_ArgsT, _KwargsT]):
     """
     Pack multiple func parameters in a single ``CompileFuncParams`` object. 
     Used as an indicator that the compile function accepts multiple args and 

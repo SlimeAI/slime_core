@@ -10,11 +10,11 @@ from slime_core.utils.typing import (
 )
 
 
-def _create_core_logger() -> logging.Logger:
+def _create_core_logger(name: str) -> logging.Logger:
     """
     Create default core logger and return.
     """
-    logger = logging.getLogger('core_logger__')
+    logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
     logger.propagate = False
     
@@ -28,7 +28,7 @@ def _create_core_logger() -> logging.Logger:
     return logger
 
 
-_default_core_logger = _create_core_logger()
+_default_core_logger = _create_core_logger('core_logger__')
 core_logger = _default_core_logger
 
 #
