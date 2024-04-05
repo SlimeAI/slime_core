@@ -15,7 +15,7 @@ from .base import (
     AttrObservable,
     ItemAttrBinding
 )
-from .metaclasses.metabase import Singleton
+from .metaclass.metabase import Singleton
 from .decorator import RemoveOverload
 import threading
 import os

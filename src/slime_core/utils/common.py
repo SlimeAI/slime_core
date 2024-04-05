@@ -19,7 +19,7 @@ from .typing.extension import (
     MISSING,
     Missing
 )
-from .metaclasses.metabase import (
+from .metaclass.metabase import (
     ReadonlyAttr
 )
 

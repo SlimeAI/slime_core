@@ -1,5 +1,5 @@
 from slime_core.utils.common import Count
-from slime_core.utils.abcs.base import (
+from slime_core.utils.abc.base import (
     CoreMutableBiListItem,
     CoreBiList,
     CoreCompositeStructure

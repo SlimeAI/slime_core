@@ -19,13 +19,13 @@ from .typing.native import (
 from .typing.extension import (
     NoneOrNothing
 )
-from .abcs.base import (
+from .abc.base import (
     CoreBaseDict
 )
-from .metaclasses.metabase import (
+from .metaclass.metabase import (
     InitOnceBase
 )
-from .metaclasses import (
+from .metaclass import (
     Metaclasses,
     InitOnceMetaclass
 )
@@ -136,7 +136,7 @@ from .typing.extension import (
 from .decorator import (
     DecoratorCall
 )
-from .abcs.base import (
+from .abc.base import (
     CoreBaseList,
     CoreBiListItem,
     CoreMutableBiListItem,
