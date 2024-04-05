@@ -2,14 +2,16 @@
 ``metabase`` defines helper classes with specified metaclasses, allowing 
 users to specify metaclasses in their custom classes through inheritance.
 """
-from .typing import (
-    MISSING,
+from slime_core.utils.typing.native import (
     Any,
     Callable,
     FrozenSet,
     Tuple
 )
-from .metaclass import (
+from slime_core.utils.typing.extension import (
+    MISSING
+)
+from . import (
     _ReadonlyAttrMetaclass,
     InitOnceMetaclass,
     SingletonMetaclass
@@ -73,7 +75,7 @@ class ReadonlyAttr(metaclass=_ReadonlyAttrMetaclass):
         ):
             return __mod_func()
         else:
-            from .exception import APIMisused
+            from ..exception import APIMisused
             raise APIMisused(f'``{__name}`` in class ``{type(self)}`` is a readonly attribute.')
 
 #

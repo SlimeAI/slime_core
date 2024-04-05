@@ -6,18 +6,20 @@ Common utils in slime_core.
 # new classes, and it should be at the beginning of the file in order 
 # to avoid circular imports.
 #
-from .typing import (
+from .typing.native import (
     Generic,
     TypeVar,
     Hashable,
     Set,
     Type,
     Union,
-    MISSING,
-    Missing,
     Any
 )
-from .metabase import (
+from .typing.extension import (
+    MISSING,
+    Missing
+)
+from .metaclasses.metabase import (
     ReadonlyAttr
 )
 
@@ -133,7 +135,7 @@ def make_params_hashable(
 import threading
 import multiprocessing
 from textwrap import indent
-from .typing import (
+from .typing.native import (
     Mapping,
     Sequence
 )

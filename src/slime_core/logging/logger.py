@@ -4,8 +4,10 @@ Core logger module.
 import sys
 import logging
 from contextlib import ContextDecorator
-from slime_core.utils.typing import (
-    Any,
+from slime_core.utils.typing.native import (
+    Any
+)
+from slime_core.utils.typing.extension import (
     NOTHING
 )
 
@@ -56,7 +58,7 @@ class set_core_logger(ContextDecorator):
         core_logger = self.prev
     
     def _recreate_cm(self):
-        return self.__class__(self.logger)
+        return type(self)(self.logger)
 
 #
 # Logger Func Arg Adapter

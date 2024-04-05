@@ -1,8 +1,15 @@
 from functools import wraps
-from slime_core.utils.typing import (
+from slime_core.utils.typing.native import (
     Union,
     Callable,
     TypeVar,
+    Type,
+    Any,
+    overload,
+    Tuple,
+    List
+)
+from slime_core.utils.typing.extension import (
     is_none_or_nothing,
     FuncOrMethod,
     NOTHING,
@@ -10,15 +17,10 @@ from slime_core.utils.typing import (
     RawFunc,
     is_function_or_method,
     unwrap_method,
-    Type,
-    Any,
-    overload,
     resolve_mro,
     resolve_bases,
-    Tuple,
     MISSING,
-    Missing,
-    List
+    Missing
 )
 from slime_core.utils.decorator import DecoratorCall
 import threading

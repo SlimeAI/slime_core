@@ -2,10 +2,9 @@
 ABCs for ``slime_core.utils.base``.
 """
 from abc import ABC, abstractmethod
-from slime_core.utils.typing import (
+from slime_core.utils.typing.native import (
     Generic,
     TypeVar,
-    Nothing,
     List,
     Union,
     SupportsIndex,
@@ -13,6 +12,9 @@ from slime_core.utils.typing import (
     MutableSequence,
     MutableMapping,
     Dict
+)
+from slime_core.utils.typing.extension import (
+    Nothing
 )
 
 _T = TypeVar("_T")

@@ -1,6 +1,6 @@
 from .build import CoreBuildInterface
 from slime_core.utils.abcs.base import CoreBaseList
-from slime_core.utils.typing import (
+from slime_core.utils.typing.native import (
     TypeVar,
     Generic
 )

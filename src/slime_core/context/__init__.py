@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
-from slime_core.utils.typing import (
+from slime_core.utils.typing.native import (
     Union,
-    Nothing,
     Generic,
     TypeVar
+)
+from slime_core.utils.typing.extension import (
+    Nothing
 )
 
 _CompileT = TypeVar("_CompileT")

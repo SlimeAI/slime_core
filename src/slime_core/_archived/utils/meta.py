@@ -2,17 +2,19 @@
 Archived: Meta
 """
 from slime_core.utils.common import dict_to_key_value_str_list
-from slime_core.utils.typing import (
-    NOTHING,
-    NoneOrNothing,
+from slime_core.utils.typing.native import (
     Any,
     Union,
     TypeVar,
     Callable,
     Type,
-    is_none_or_nothing,
     overload,
-    NoReturn,
+    NoReturn
+)
+from slime_core.utils.typing.extension import (
+    NOTHING,
+    NoneOrNothing,
+    is_none_or_nothing,
     Missing,
     MISSING
 )

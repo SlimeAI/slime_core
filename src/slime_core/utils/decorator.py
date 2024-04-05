@@ -1,18 +1,21 @@
+import inspect
 from functools import wraps
-from .typing import (
+from .typing.native import (
     Union,
     Callable,
     TypeVar,
     Type,
     overload,
-    FuncOrMethod,
-    List,
     overload_dummy,
-    MISSING,
+    List,
     Dict,
-    Missing,
-    unwrap_method,
     Any
+)
+from .typing.extension import (
+    FuncOrMethod,
+    MISSING,
+    Missing,
+    unwrap_method
 )
 
 _T = TypeVar("_T")
@@ -79,7 +82,7 @@ def RemoveOverload(_cls=MISSING, *, checklist: Union[Missing, List[str]] = MISSI
         nonlocal checklist
         
         _dict = cls.__dict__
-        filter_func = lambda key: key in _dict and unwrap_method(_dict[key]) is overload_dummy
+        filter_func = lambda key: key in _dict and inspect.unwrap(unwrap_method(_dict[key])) is overload_dummy
         
         if checklist is MISSING:
             checklist = filter(filter_func, _dict.keys())

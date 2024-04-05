@@ -4,20 +4,22 @@ from slime_core.utils.abcs.base import (
     CoreBiList,
     CoreCompositeStructure
 )
-from slime_core.utils.typing import (
+from slime_core.utils.typing.native import (
     Iterable,
     Callable,
     TypeVar,
     Generic,
     Union,
-    EmptyFlag,
-    NoneOrNothing,
-    Pass,
     Any,
     Tuple,
     Dict,
     List,
-    Type,
+    Type
+)
+from slime_core.utils.typing.extension import (
+    EmptyFlag,
+    NoneOrNothing,
+    Pass,
     Nothing
 )
 from abc import ABC, abstractmethod

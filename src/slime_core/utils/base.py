@@ -5,7 +5,7 @@ slime_core util base classes.
 # NOTE: ``BaseDict`` should be placed at the beginning of the file in order 
 # to avoid circular import error (caused by ``slime_core.logging.logger``).
 #
-from .typing import (
+from .typing.native import (
     TypeVar,
     MutableMapping,
     Generic,
@@ -13,17 +13,19 @@ from .typing import (
     Dict,
     Iterable,
     Tuple,
-    NoneOrNothing,
     overload,
     Iterator
+)
+from .typing.extension import (
+    NoneOrNothing
 )
 from .abcs.base import (
     CoreBaseDict
 )
-from .metabase import (
+from .metaclasses.metabase import (
     InitOnceBase
 )
-from .metaclass import (
+from .metaclasses import (
     Metaclasses,
     InitOnceMetaclass
 )
@@ -107,7 +109,7 @@ import traceback
 from contextlib import ContextDecorator, ExitStack, contextmanager
 from functools import partial
 from types import TracebackType
-from .typing import (
+from .typing.native import (
     Any,
     List,
     Sequence,
@@ -117,16 +119,18 @@ from .typing import (
     Type,
     Generator,
     Callable,
+    Set,
+    ContextManager
+)
+from .typing.extension import (
     NOTHING,
     Nothing,
     Pass,
     PASS,
     is_none_or_nothing,
-    Set,
     Missing,
     MISSING,
     unwrap_method,
-    ContextManager,
     STOP
 )
 from .decorator import (

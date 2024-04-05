@@ -1,5 +1,5 @@
 from . import CoreHandlerContainer
-from slime_core.utils.typing import (
+from slime_core.utils.typing.native import (
     TypeVar,
     Union,
     Generator,

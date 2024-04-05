@@ -4,20 +4,22 @@ We name all the metaclasses with ``Metaclass`` rather than the abbreviation
 ``Meta``, because there already exists the ``Meta`` feature (although it has 
 been deprecated), and we want to distinguish between these two concepts.
 """
-from .typing import (
+from slime_core.utils.typing.native import (
     TypeVar,
     Type,
     Tuple,
     Dict,
     Any,
-    _SingletonMetaclass,
     TYPE_CHECKING,
-    MISSING,
     Union,
+    List
+)
+from slime_core.utils.typing.extension import (
+    _SingletonMetaclass,
+    MISSING,
+    Missing,
     Pass,
     PASS,
-    Missing,
-    List,
     resolve_bases,
     resolve_minimal_classes,
     resolve_mro,
@@ -85,7 +87,7 @@ class InitOnceMetaclass(InstanceCreationHookMetaclass):
 class SingletonMetaclass(_SingletonMetaclass):
     """
     Makes a specific class a singleton class. Inherits ``_SingletonMetaclass`` in 
-    ``slime_core.utils.typing`` for more general use.
+    ``slime_core.utils.typing.extension`` for more general use.
     """
     pass
 
@@ -247,7 +249,7 @@ class MetaclassResolver:
                     insertion_found = True
                     break
             if not insertion_found:
-                from .exception import APIMisused
+                from slime_core.utils.exception import APIMisused
                 raise APIMisused(
                     f'The ``meta_base`` {meta_base} cannot find an insertion position in '
                     f'the metaclasses: ``{final_metaclasses}``'
@@ -273,7 +275,7 @@ class MetaclassResolver:
         cache it in the ``metaclass_adapter_dict__``. If the params are not hashable, 
         then directly create a new metaclass adapter and return (without caching it).
         """
-        from .common import make_params_hashable, FuncParams
+        from slime_core.utils.common import make_params_hashable, FuncParams
         key = make_params_hashable(
             FuncParams(*final_metaclasses, **meta_kwargs)
         )

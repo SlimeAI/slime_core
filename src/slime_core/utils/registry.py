@@ -3,15 +3,17 @@ A convenient module register util that helps you dynamically build modules.
 """
 from .base import BaseDict
 from .decorator import DecoratorCall
-from .typing import (
+from .typing.native import (
     Union,
     Sequence,
     TypeVar,
     overload,
     Callable,
-    Missing,
-    MISSING,
     Generic
+)
+from .typing.extension import (
+    Missing,
+    MISSING
 )
 
 _KT = TypeVar("_KT")

@@ -1,12 +1,14 @@
-from slime_core.utils.typing import (
+from slime_core.utils.typing.native import (
     Dict,
     Any,
     TypeVar,
     Generic,
     Union,
-    EmptyFlag,
-    Nothing,
     TypeVar
+)
+from slime_core.utils.typing.extension import (
+    EmptyFlag,
+    Nothing
 )
 from slime_core.utils.common import FuncParams
 from abc import ABC, abstractmethod

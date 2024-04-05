@@ -2,7 +2,7 @@
 Distributed Launch Hook
 """
 from slime_core.utils.launch import CoreLaunchUtil
-from slime_core.utils.typing import (
+from slime_core.utils.typing.native import (
     Generic,
     TypeVar
 )

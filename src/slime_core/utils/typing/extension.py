@@ -1,115 +1,21 @@
 """
-This Python module defines common types that are used in the project, 
-provides version compatibility for Python and introduces special constants 
-in slime_core.
+This module defines common types, introduces special constants, provides other 
+introspection utilities, etc.
 """
-import multiprocessing
 import re
-import sys
 import threading
+import multiprocessing
 from types import FunctionType, MethodType
-from typing import *
-
-#
-# Typing import for version compatibility.
-#
-
-if sys.version_info < (3, 8):
-    try:
-        from typing_extensions import (
-            SupportsIndex,
-            TypedDict,
-            Literal,
-            Protocol,
-            runtime_checkable
-        )
-    except Exception:
-        print(
-            'Loading ``typing_extensions`` module failed. '
-            'Please make sure you have installed it correctly.'
-        )
-        raise
-
-if sys.version_info < (3, 9):
-    # FIX: ``from typing import *`` does not include the following modules under Python 3.9
-    from typing import (
-        BinaryIO,
-        IO,
-        Match,
-        Pattern,
-        TextIO
-    )
-
-if sys.version_info >= (3, 9):
-    from builtins import (
-        dict as Dict,
-        list as List,
-        set as Set,
-        frozenset as Frozenset,
-        tuple as Tuple,
-        type as Type,
-        # for compatibility for Python 2.x
-        str as Text
-    )
-    
-    from collections import (
-        defaultdict as DefaultDict,
-        OrderedDict as OrderedDict,
-        ChainMap as ChainMap,
-        Counter as Counter,
-        deque as Deque
-    )
-    
-    from re import (
-        Pattern as Pattern,
-        Match as Match
-    )
-    
-    from collections.abc import (
-        Set as AbstractSet,
-        Collection as Collection,
-        Container as Container,
-        ItemsView as ItemsView,
-        KeysView as KeysView,
-        Mapping as Mapping,
-        MappingView as MappingView,
-        MutableMapping as MutableMapping,
-        MutableSequence as MutableSequence,
-        MutableSet as MutableSet,
-        Sequence as Sequence,
-        ValuesView as ValuesView,
-        Coroutine as Coroutine,
-        AsyncGenerator as AsyncGenerator,
-        AsyncIterable as AsyncIterable,
-        AsyncIterator as AsyncIterator,
-        Awaitable as Awaitable,
-        Iterable as Iterable,
-        Iterator as Iterator,
-        Callable as Callable,
-        Generator as Generator,
-        Hashable as Hashable,
-        Reversible as Reversible,
-        Sized as Sized
-    )
-    
-    # deprecated type: ByteString
-    try:
-        from typing_extensions import (
-            Buffer as ByteString
-        )
-    except Exception:
-        ByteString = Union[bytes, bytearray, memoryview]
-    
-    from contextlib import (
-        AbstractContextManager as ContextManager,
-        AbstractAsyncContextManager as AsyncContextManager
-    )
-
-try:
-    from typing import _overload_dummy as overload_dummy
-except Exception:
-    @overload
-    def overload_dummy(): pass
+from .native import (
+    Any,
+    Literal,
+    Tuple,
+    Union,
+    overload,
+    Iterable,
+    Type,
+    Set
+)
 
 #
 # Special constants defined in slime_core.
@@ -145,46 +51,135 @@ class _SingletonMetaclass(type):
 
 class Nothing(metaclass=_SingletonMetaclass):
     """
-    'Nothing' object, different from python 'None'.
-    It often comes from getting properties or items that the object does not have, or simply represents a default value.
-    'Nothing' allows any attribute-get or method-call operations without throwing Errors, making the program more stable.
-    It will show Warnings in the console instead.
+    This class defines a ``NOTHING`` constant. Different from ``None`` in Python, ``NOTHING`` 
+    is more exception-friendly, which means no exception will be raised under the following 
+    situations:
+    
+    - Getting attributes or items that ``NOTHING`` does not have (which will return ``NOTHING``).
+    - Setting attributes or items to ``NOTHING`` (which will actually do nothing).
+    - Calling ``NOTHING`` with arbitrary param settings (which will return ``NOTHING``).
+    - Using ``NOTHING`` as a context manager (which will do nothing).
+    - Converting ``NOTHING`` to int, float, bool or other types.
+    - Applying arithmetic operations to ``NOTHING`` and other values (which will return ``NOTHING``).
+    - Other similar situations...
+    
+    NOTE: We use ``*args`` and ``**kwargs`` signatures in all methods to maximize compatibility with 
+    possible future changes.
     """
     __slots__ = ()
 
-    def __init__(self): super().__init__()
-    def __call__(self, *args, **kwargs): return self
-    def __getattribute__(self, *_): return self
-    def __getitem__(self, *_): return self
-    def __setattr__(self, *_): pass
-    def __setitem__(self, *_): pass
-    def __len__(self): return 0
-    def __iter__(self): return self
-    def __next__(self): raise StopIteration
-    def __str__(self) -> str: return 'NOTHING'
-    def __repr__(self) -> str: return f'NOTHING<{str(hex(id(self)))}>'
-    def __format__(self, __format_spec: str) -> str: return 'NOTHING'
-    def __contains__(self, _) -> bool: return False
-
-    def __eq__(self, obj) -> bool:
-        if obj is NOTHING:
+    def __init__(self, *args, **kwargs) -> None: pass
+    # Basic methods.
+    def __repr__(self, *args, **kwargs) -> str: return f'NOTHING<{str(hex(id(self)))}>'
+    def __str__(self, *args, **kwargs) -> Literal['NOTHING']: return 'NOTHING'
+    def __format__(self, *args, **kwargs) -> Literal['NOTHING']: return 'NOTHING'
+    def __hash__(self, *args, **kwargs) -> int: return id(self)
+    def __bool__(self, *args, **kwargs) -> Literal[False]: return False
+    def __bytes__(self, *args, **kwargs) -> Literal[b'']: return b''
+    # Comparison operations.
+    # NOTE: All the comparison operations without equality will return ``False``, so 
+    # it is recommended that you manually check whether the object is ``NOTHING``, 
+    # otherwise this may cause unexpected results.
+    # Example:
+    # NOTHING > 114514 (False)
+    # NOTHING < 1919810 (False)
+    # NOTHING <= 114514 (False)
+    # NOTHING >= NOTHING (True)
+    # NOTHING == NOTHING (True)
+    def __eq__(self, __value: Any, *args, **kwargs) -> bool:
+        if __value is NOTHING:
             return True
         return False
-
-    def __add__(self, _): return self
-    def __sub__(self, _): return self
-    def __mul__(self, _): return self
-    def __truediv__(self, _): return self
-    def __radd__(self, _): return self
-    def __rsub__(self, _): return self
-    def __rmul__(self, _): return self
-    def __rtruediv__(self, _): return self
-    def __int__(self) -> int: return 0
-    def __index__(self) -> int: return 0
-    def __float__(self): return 0.0
-    def __bool__(self) -> bool: return False
-    def __enter__(self) -> "Nothing": return self
-    def __exit__(self, *args, **kwargs): return False
+    def __lt__(self, *args, **kwargs) -> Literal[False]: return False
+    def __le__(self, __value: Any, *args, **kwargs) -> bool: return self == __value
+    def __gt__(self, *args, **kwargs) -> Literal[False]: return False
+    def __ge__(self, __value: Any, *args, **kwargs) -> bool: return self == __value
+    # Attribute operations.
+    def __getattr__(self, *args, **kwargs) -> "Nothing": return self
+    def __getattribute__(self, *args, **kwargs) -> "Nothing": return self
+    def __setattr__(self, *args, **kwargs) -> None: pass
+    def __delattr__(self, *args, **kwargs) -> None: pass
+    def __dir__(self, *args, **kwargs) -> Tuple[()]: return ()
+    # Descriptor.
+    def __get__(self, *args, **kwargs) -> "Nothing": return self
+    def __set__(self, *args, **kwargs) -> None: pass
+    def __delete__(self, *args, **kwargs) -> None: pass
+    # Calling ``NOTHING`` with arbitrary param settings will return ``NOTHING`` itself.
+    def __call__(self, *args, **kwargs) -> "Nothing": return self
+    # Iterator.
+    def __next__(self, *args, **kwargs): raise StopIteration
+    # Container operations.
+    def __len__(self, *args, **kwargs) -> Literal[0]: return 0
+    def __getitem__(self, *args, **kwargs) -> "Nothing": return self
+    def __setitem__(self, *args, **kwargs) -> None: pass
+    def __delitem__(self, *args, **kwargs) -> None: pass
+    def __iter__(self, *args, **kwargs) -> "Nothing": return self
+    def __reversed__(self, *args, **kwargs) -> "Nothing": return self
+    def __contains__(self, *args, **kwargs) -> Literal[False]: return False
+    # Arithmetic operations.
+    def __add__(self, *args, **kwargs) -> "Nothing": return self
+    def __radd__(self, *args, **kwargs) -> "Nothing": return self
+    def __iadd__(self, *args, **kwargs) -> "Nothing": return self
+    def __sub__(self, *args, **kwargs) -> "Nothing": return self
+    def __rsub__(self, *args, **kwargs) -> "Nothing": return self
+    def __isub__(self, *args, **kwargs) -> "Nothing": return self
+    def __mul__(self, *args, **kwargs) -> "Nothing": return self
+    def __rmul__(self, *args, **kwargs) -> "Nothing": return self
+    def __imul__(self, *args, **kwargs) -> "Nothing": return self
+    def __matmul__(self, *args, **kwargs) -> "Nothing": return self
+    def __rmatmul__(self, *args, **kwargs) -> "Nothing": return self
+    def __imatmul__(self, *args, **kwargs) -> "Nothing": return self
+    def __truediv__(self, *args, **kwargs) -> "Nothing": return self
+    def __rtruediv__(self, *args, **kwargs) -> "Nothing": return self
+    def __itruediv__(self, *args, **kwargs) -> "Nothing": return self
+    def __floordiv__(self, *args, **kwargs) -> "Nothing": return self
+    def __rfloordiv__(self, *args, **kwargs) -> "Nothing": return self
+    def __ifloordiv__(self, *args, **kwargs) -> "Nothing": return self
+    def __mod__(self, *args, **kwargs) -> "Nothing": return self
+    def __rmod__(self, *args, **kwargs) -> "Nothing": return self
+    def __imod__(self, *args, **kwargs) -> "Nothing": return self
+    def __divmod__(self, *args, **kwargs) -> Tuple["Nothing", "Nothing"]: return self, self
+    def __rdivmod__(self, *args, **kwargs) -> Tuple["Nothing", "Nothing"]: return self, self
+    def __pow__(self, *args, **kwargs) -> "Nothing": return self
+    def __rpow__(self, *args, **kwargs) -> "Nothing": return self
+    def __ipow__(self, *args, **kwargs) -> "Nothing": return self
+    def __lshift__(self, *args, **kwargs) -> "Nothing": return self
+    def __rlshift__(self, *args, **kwargs) -> "Nothing": return self
+    def __ilshift__(self, *args, **kwargs) -> "Nothing": return self
+    def __rshift__(self, *args, **kwargs) -> "Nothing": return self
+    def __rrshift__(self, *args, **kwargs) -> "Nothing": return self
+    def __irshift__(self, *args, **kwargs) -> "Nothing": return self
+    def __and__(self, *args, **kwargs) -> "Nothing": return self
+    def __rand__(self, *args, **kwargs) -> "Nothing": return self
+    def __iand__(self, *args, **kwargs) -> "Nothing": return self
+    def __xor__(self, *args, **kwargs) -> "Nothing": return self
+    def __rxor__(self, *args, **kwargs) -> "Nothing": return self
+    def __ixor__(self, *args, **kwargs) -> "Nothing": return self
+    def __or__(self, *args, **kwargs) -> "Nothing": return self
+    def __ror__(self, *args, **kwargs) -> "Nothing": return self
+    def __ior__(self, *args, **kwargs) -> "Nothing": return self
+    def __neg__(self, *args, **kwargs) -> "Nothing": return self
+    def __pos__(self, *args, **kwargs) -> "Nothing": return self
+    def __abs__(self, *args, **kwargs) -> "Nothing": return self
+    def __invert__(self, *args, **kwargs) -> "Nothing": return self
+    def __complex__(self, *args, **kwargs) -> complex: return 0j
+    def __int__(self, *args, **kwargs) -> Literal[0]: return 0
+    def __float__(self, *args, **kwargs) -> float: return 0.0
+    def __index__(self, *args, **kwargs) -> Literal[0]: return 0
+    def __round__(self, *args, **kwargs) -> Literal[0]: return 0
+    def __trunc__(self, *args, **kwargs) -> Literal[0]: return 0
+    def __floor__(self, *args, **kwargs) -> Literal[0]: return 0
+    def __ceil__(self, *args, **kwargs) -> Literal[0]: return 0
+    # Context manager.
+    def __enter__(self, *args, **kwargs) -> "Nothing": return self
+    def __exit__(self, *args, **kwargs) -> Literal[False]: return False
+    # Asynchronous operations.
+    def __await__(self, *args, **kwargs) -> "Nothing": return self
+    def __aiter__(self, *args, **kwargs) -> "Nothing": return self
+    async def __anext__(self, *args, **kwargs): raise StopAsyncIteration
+    # Async context manager.
+    async def __aenter__(self, *args, **kwargs) -> "Nothing": return self
+    async def __aexit__(self, *args, **kwargs) -> Literal[False]: return False
 
 
 NOTHING = Nothing()
@@ -194,7 +189,7 @@ NOTHING = Nothing()
 #
 
 class _FlagConstant(metaclass=_SingletonMetaclass):
-    def __str__(self) -> str: return self.__class__.__name__.upper()
+    def __str__(self) -> str: return resolve_classname(self).upper()
     def __repr__(self) -> str: return f'{str(self)}<{str(hex(id(self)))}>'
 
 
@@ -248,7 +243,7 @@ def is_empty_flag(__obj: Any) -> bool:
     )
 
 #
-# Other types, type checking, naming checking, type parsing, etc.
+# Other types, type check and naming check.
 #
 
 FuncOrMethod = Union[FunctionType, MethodType]
@@ -270,6 +265,9 @@ SLIME_PATTERN = re.compile('^[^_](?:.*[^_])?_{2}$')
 def is_slime_naming(__name: str) -> bool:
     return SLIME_PATTERN.match(str(__name)) is not None
 
+#
+# Introspection utilities.
+#
 
 @overload
 def unwrap_method(__func: FuncOrMethod) -> RawFunc: pass
@@ -284,6 +282,28 @@ def unwrap_method(__func: Union[FuncOrMethod, NoneOrNothing]) -> Union[RawFunc, 
         # get the original function body of the method
         __func = __func.__func__
     return __func
+
+
+def resolve_classname(__obj: Any) -> str:
+    """
+    Try to resolve the classname of the given object.
+    """
+    # NOTE: Use ``type`` rather than ``__obj.__class__``, because the former is more valid, 
+    # especially when the ``__getattribute__`` method is overridden by ``__obj`` (e.g., 
+    # ``NOTHING.__class__`` will return ``NOTHING`` itself rather than the ``Nothing`` class).
+    cls = type(__obj)
+    # NOTE: Use multiple if-return statements here to improve efficiency.
+    classname = getattr(cls, '__name__', None)
+    if classname:
+        return classname
+    classname = getattr(cls, '__qualname__', None)
+    if classname:
+        return classname
+    classname = str(cls)
+    if classname:
+        return classname
+    classname = repr(cls)
+    return classname
 
 
 def resolve_mro(__cls: Type) -> Tuple[Type, ...]:

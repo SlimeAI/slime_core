@@ -1,19 +1,21 @@
-from .typing import (
+from .typing.native import (
     Any,
     Dict,
     overload,
-    is_slime_naming,
     Union,
-    Missing,
-    MISSING,
     TYPE_CHECKING
+)
+from .typing.extension import (
+    is_slime_naming,
+    Missing,
+    MISSING
 )
 from .base import (
     Base,
     AttrObservable,
     ItemAttrBinding
 )
-from .metabase import Singleton
+from .metaclasses.metabase import Singleton
 from .decorator import RemoveOverload
 import threading
 import os

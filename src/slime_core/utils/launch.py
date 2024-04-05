@@ -1,12 +1,14 @@
-from .typing import (
+from .typing.native import (
     Union,
     Callable,
     TypeVar,
     Sequence,
+    Any
+)
+from .typing.extension import (
     NoneOrNothing,
     Pass,
-    PASS,
-    Any
+    PASS
 )
 from abc import ABC, abstractmethod
 

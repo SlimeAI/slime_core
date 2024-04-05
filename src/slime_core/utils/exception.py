@@ -12,7 +12,7 @@ class APIMisused(Exception):
         return f'{self.msg}'
 
 
-from .typing import NOTHING
+from .typing.extension import NOTHING
 
 #
 # Base Exception class for all Handler Exceptions and Interrupts
