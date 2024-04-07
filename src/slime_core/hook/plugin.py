@@ -1,10 +1,10 @@
-from .build import CoreBuildInterface
+from abc import ABC
 from slime_core.utils.abc.base import CoreBaseList
 from slime_core.utils.typing.native import (
     TypeVar,
     Generic
 )
-from abc import ABC
+from .build import CoreBuildInterface
 
 _ContextT = TypeVar("_ContextT")
 _PluginHookT = TypeVar("_PluginHookT")

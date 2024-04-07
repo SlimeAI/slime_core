@@ -71,6 +71,20 @@ def Experimental():
     pass
 
 
+OVERLOAD_FUNC = 'overload_func__'
+
+
+def OverloadFunc(_func: _FuncOrMethodT) -> _FuncOrMethodT:
+    """
+    Indicate that a function or method is an overload func, and it could be 
+    removed by the ``RemoveOverload`` decorator. It further ensures that the 
+    given func is overloaded, in case the ``overload_dummy`` check won't work 
+    in certain future versions of Python.
+    """
+    setattr(_func, OVERLOAD_FUNC, True)
+    return _func
+
+
 @overload
 def RemoveOverload(_cls: Missing = MISSING, *, checklist: Union[Missing, List[str]] = MISSING) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
@@ -80,39 +94,59 @@ def RemoveOverload(_cls: Type[_T], *, checklist: Union[Missing, List[str]] = MIS
 def RemoveOverload(_cls=MISSING, *, checklist: Union[Missing, List[str]] = MISSING):
     def decorator(cls: Type[_T]) -> Type[_T]:
         nonlocal checklist
-        
         _dict = cls.__dict__
-        filter_func = lambda key: key in _dict and inspect.unwrap(unwrap_method(_dict[key])) is overload_dummy
+        
+        def filter_func(key: str) -> bool:
+            """
+            Check whether the function or method of the given key is to be removed.
+            """
+            if key not in _dict:
+                return False
+            static_func = unwrap_method(_dict[key])
+            # Check ``OVERLOAD_FUNC`` here for further confirmation.
+            if getattr(static_func, OVERLOAD_FUNC, False):
+                return True
+            # NOTE: The ``overload_dummy`` check may fail in future versions of Python, 
+            # so using ``OverloadFunc`` is safer.
+            return inspect.unwrap(static_func) is overload_dummy
         
         if checklist is MISSING:
             checklist = filter(filter_func, _dict.keys())
         else:
             checklist = filter(filter_func, checklist)
         for attr in checklist:
-            delattr(cls, attr)
+            try:
+                delattr(cls, attr)
+            except AttributeError as e:
+                from slime_core.logging.logger import core_logger
+                core_logger.error(str(e), stack_info=True)
         
         return cls
     return decorator
 
 
 @overload
-def FuncSetAttr(_func: Missing = MISSING, *, attr_dict: Dict[str, Any]) -> Callable[[_T], _T]: pass
+def FuncSetAttr(_func: Missing = MISSING, *, attr_dict: Dict[str, Any]) -> Callable[[_FuncOrMethodT], _FuncOrMethodT]: pass
 @overload
-def FuncSetAttr(_func: _T, *, attr_dict: Dict[str, Any]) -> _T: pass
+def FuncSetAttr(_func: _FuncOrMethodT, *, attr_dict: Dict[str, Any]) -> _FuncOrMethodT: pass
 
 @DecoratorCall(index=0, keyword='_func')
 def FuncSetAttr(_func=MISSING, *, attr_dict: Dict[str, Any]):
     """
     Set attributes to the function in a decorator way.
     """
-    def decorator(func: _T) -> _T:
+    def decorator(func: _FuncOrMethodT) -> _FuncOrMethodT:
         for key, value in attr_dict.items():
-            setattr(func, key, value)
+            try:
+                setattr(func, key, value)
+            except AttributeError as e:
+                from slime_core.logging.logger import core_logger
+                core_logger.error(str(e), stack_info=True)
         return func
     return decorator
 
 
-def InitOnce(func: _FuncOrMethodT) -> _FuncOrMethodT:
+def InitOnce(_func: _FuncOrMethodT) -> _FuncOrMethodT:
     """
     Used for ``__init__`` operations in multiple inheritance scenarios.
     Should be used together with ``slime_core.utils.metaclass.InitOnceMetaclass``.
@@ -151,9 +185,9 @@ def InitOnce(func: _FuncOrMethodT) -> _FuncOrMethodT:
     \"""
     ```
     """
-    func_id = str(id(func))
+    func_id = str(id(_func))
     
-    @wraps(func)
+    @wraps(_func)
     def wrapper(self, *args, **kwargs) -> Union[_T, None]:
         init_once__: Union[Dict, Missing] = getattr(self, 'init_once__', MISSING)
         # whether the instance is being created.
@@ -164,7 +198,7 @@ def InitOnce(func: _FuncOrMethodT) -> _FuncOrMethodT:
         ret = None
         if not instance_creating or uninitialized:
             # call the ``__init__`` method.
-            ret = func(self, *args, **kwargs)
+            ret = _func(self, *args, **kwargs)
         
         if uninitialized:
             """

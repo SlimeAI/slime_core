@@ -1,11 +1,11 @@
-from . import CoreHandlerContainer
+from abc import ABC, abstractmethod
 from slime_core.utils.typing.native import (
     TypeVar,
     Union,
     Generator,
     Generic
 )
-from abc import ABC, abstractmethod
+from . import CoreHandlerContainer
 
 _HandlerT = TypeVar("_HandlerT")
 _HandlerContainerT = TypeVar("_HandlerContainerT")

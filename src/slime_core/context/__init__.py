@@ -1,4 +1,7 @@
 from abc import ABC, abstractmethod
+from slime_core.utils.abc.base import (
+    CoreBase
+)
 from slime_core.utils.typing.native import (
     Union,
     Generic,
@@ -11,7 +14,7 @@ from slime_core.utils.typing.extension import (
 _CompileT = TypeVar("_CompileT")
 
 
-class CoreTempContext(ABC):
+class CoreTempContext(CoreBase, ABC):
     """
     NOTE: ``Temp`` in the name does NOT mean the context itself is temporal and may 
     be destroyed, but means some attributes in the context can be re-initialized by 

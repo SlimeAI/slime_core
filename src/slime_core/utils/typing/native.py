@@ -1,5 +1,8 @@
 """
 This module provides version compatibility for the native Python ``typing`` module.
+
+NOTE: This module may not provide a complete ``typing`` version compatibility. It may only 
+process typings that may be used by ``slime_core``.
 """
 import sys
 from typing import *

@@ -1,6 +1,6 @@
 """
-slime_core provides basic framework support and a rich utility library 
-for developing slime implementations (e.g., torchslime).
+``slime_core`` provides basic framework support and a rich utility library 
+for developing slime implementations (e.g., ``torchslime``).
 
 Core abstract APIs are defined in this module.
 """

@@ -1,9 +1,9 @@
+from abc import ABC, abstractmethod
 from slime_core.utils.typing.native import (
     TypeVar,
     Generic,
     Generator
 )
-from abc import ABC, abstractmethod
 
 _ContextT = TypeVar("_ContextT")
 

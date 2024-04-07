@@ -1,3 +1,6 @@
+"""
+Custom exceptions in ``slime_core``.
+"""
 #
 # API Misused
 #

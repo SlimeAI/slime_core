@@ -1,6 +1,7 @@
 """
 Archived: Meta
 """
+from textwrap import indent
 from slime_core.utils.common import dict_to_key_value_str_list
 from slime_core.utils.typing.native import (
     Any,
@@ -9,7 +10,8 @@ from slime_core.utils.typing.native import (
     Callable,
     Type,
     overload,
-    NoReturn
+    NoReturn,
+    Sequence
 )
 from slime_core.utils.typing.extension import (
     NOTHING,
@@ -18,11 +20,40 @@ from slime_core.utils.typing.extension import (
     Missing,
     MISSING
 )
-from slime_core.utils.decorator import DecoratorCall, RemoveOverload
-from .decorator import ClassWraps, ClassFuncWrapper
+from slime_core.utils.decorator import DecoratorCall, RemoveOverload, OverloadFunc
 from slime_core.utils.exception import APIMisused
+from .decorator import ClassWraps, ClassFuncWrapper
 
 _T = TypeVar("_T")
+
+
+def _concat_format(
+    __left: str,
+    __content: Sequence[str],
+    __right: str,
+    *,
+    item_sep: str = ',',
+    indent_prefix: str = ' ' * 4,
+    break_line: bool = True
+) -> str:
+    """
+    A format function version that doesn't rely on the ``builtin_store`` config. In slime 
+    implementations, the ``concat_format`` function relies on the ``builtin_store`` config 
+    value (e.g., ``concat_format`` in ``torchslime.utils.common``) to set the ``indent_prefix``.
+    """
+    if len(__content) < 1:
+        # empty content: simply concat ``__left`` and ``__right``
+        return __left + __right
+
+    break_line_sep = '\n'
+    if not break_line:
+        indent_prefix = ''
+    # format content
+    content_sep = item_sep + (break_line_sep if break_line else '')
+    __content = indent(content_sep.join(__content), prefix=indent_prefix)
+    # format concat
+    concat_sep = break_line_sep if break_line else ''
+    return concat_sep.join([__left, __content, __right])
 
 
 class _MetaWrapper:
@@ -37,7 +68,6 @@ class _MetaWrapper:
         self.kwargs = kwargs
         
         # set meta info
-        from slime_core.utils.common import _concat_format
         args_str = _concat_format('', [str(arg) for arg in args], '', item_sep=', ', break_line=False)
         kwargs_str = _concat_format('', dict_to_key_value_str_list(kwargs), '', item_sep=', ', break_line=False)
         meta_str = _concat_format('', [item for item in [args_str, kwargs_str] if len(item) > 0], '', item_sep=', ', break_line=False)
@@ -225,6 +255,7 @@ class Meta:
         
         # Specify the args used in ``m_init__``.
         # Note that it only works as a type hint.
+        @OverloadFunc
         @overload
         @classmethod
         def m__(cls: Type[_T], arg1) -> Type[_T]: pass
@@ -253,6 +284,7 @@ class Meta:
     """
     def m_init__(self, *args, **kwargs): pass
     
+    @OverloadFunc
     @overload
     @classmethod
     def m__(cls: Type[_T], *args, **kwargs) -> Type[_T]: return cls

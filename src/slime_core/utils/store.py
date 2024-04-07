@@ -1,24 +1,31 @@
+import os
+import threading
+from abc import ABCMeta
+from .metaclass import (
+    SingletonMetaclass,
+    Metaclasses
+)
+from .metaclass.metabase import Singleton
 from .typing.native import (
     Any,
-    Dict,
+    MutableMapping,
     overload,
     Union,
-    TYPE_CHECKING
+    TYPE_CHECKING,
+    Sequence
 )
 from .typing.extension import (
     is_slime_naming,
     Missing,
-    MISSING
+    MISSING,
+    NoneOrNothing
 )
 from .base import (
     Base,
     AttrObservable,
     ItemAttrBinding
 )
-from .metaclass.metabase import Singleton
-from .decorator import RemoveOverload
-import threading
-import os
+from .decorator import RemoveOverload, OverloadFunc
 # type hint only
 if TYPE_CHECKING:
     from .base import (
@@ -59,13 +66,17 @@ class ScopedStore(Base, AttrObservable):
     'assign__',
     'restore__'
 ])
-class CoreStore(ItemAttrBinding, Singleton):
+class CoreStore(
+    ItemAttrBinding,
+    Singleton,
+    metaclass=Metaclasses(ABCMeta, SingletonMetaclass)
+):
     """
     NOTE: ``CoreStore`` should be strictly subclassed and create a new 
     ``scoped_store_dict__`` attribute in each subclass you create to 
     ensure the consistency and namespace independence.
     """
-    scoped_store_dict__: Dict[str, ScopedStore]
+    scoped_store_dict__: MutableMapping[str, ScopedStore]
     
     def scope__(self, __key: str) -> ScopedStore:
         if __key not in self.scoped_store_dict__:
@@ -105,15 +116,37 @@ class CoreStore(ItemAttrBinding, Singleton):
         tid = threading.get_ident()
         return f'p{pid}-t{tid}'
     
+    #
+    # Overload functions for type hints.
+    #
+    
+    @OverloadFunc
     @overload
-    def attach__(self, __observer: "AttrObserver", *, init: bool = True) -> None: pass
+    def attach__(
+        self,
+        __observer: "AttrObserver",
+        *,
+        init: Union[bool, Missing] = MISSING,
+        namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
+    ) -> None:
+        pass
+    @OverloadFunc
     @overload
-    def attach_attr__(self, __observer: "AttrObserver", __name: str, *, init: bool = True): pass
+    def attach_attr__(self, __observer: "AttrObserver", __name: str, *, init: bool = True) -> None: pass
+    @OverloadFunc
     @overload
-    def detach__(self, __observer: "AttrObserver") -> None: pass
+    def detach__(
+        __observer: "AttrObserver",
+        *,
+        namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
+    ) -> None:
+        pass
+    @OverloadFunc
     @overload
     def detach_attr__(self, __observer: "AttrObserver", __name: str) -> None: pass
+    @OverloadFunc
     @overload
-    def assign__(self, **kwargs) -> "ScopedAttrAssign": pass
+    def assign__(self, **kwargs) -> "ScopedAttrAssign[ScopedStore]": pass
+    @OverloadFunc
     @overload
-    def restore__(self, *attrs: str) -> "ScopedAttrRestore": pass
+    def restore__(self, *attrs: str) -> "ScopedAttrRestore[ScopedStore]": pass

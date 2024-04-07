@@ -2,6 +2,7 @@
 ``metabase`` defines helper classes with specified metaclasses, allowing 
 users to specify metaclasses in their custom classes through inheritance.
 """
+from functools import partial
 from slime_core.utils.typing.native import (
     Any,
     Callable,
@@ -9,27 +10,27 @@ from slime_core.utils.typing.native import (
     Tuple
 )
 from slime_core.utils.typing.extension import (
-    MISSING
+    MISSING,
+    compare_method
 )
 from . import (
-    _ReadonlyAttrMetaclass,
+    ReadonlyAttrMetaclass,
     InitOnceMetaclass,
     SingletonMetaclass
 )
-from functools import partial
 
 #
 # Readonly attributes.
 #
 
-class ReadonlyAttr(metaclass=_ReadonlyAttrMetaclass):
+class ReadonlyAttr(metaclass=ReadonlyAttrMetaclass):
     """
     Make specified attributes readonly.
     """
     __slots__ = ()
     # ``readonly_attr__`` can be specified by each class. It denotes the 
     # newly added readonly attributes in the current class.
-    # ``readonly_attr_computed__`` is computed by ``_ReadonlyAttrMetaclass`` 
+    # ``readonly_attr_computed__`` is computed by ``ReadonlyAttrMetaclass`` 
     # when the class is created. It will inherit ``readonly_attr_computed__`` 
     # in the base classes and additionally add ``readonly_attr__`` defined in 
     # the current class.
@@ -84,9 +85,18 @@ class ReadonlyAttr(metaclass=_ReadonlyAttrMetaclass):
 
 class InitOnceBase(metaclass=InitOnceMetaclass):
     """
-    Helper class that implements ``InitOnce`` using inheritance.
+    Make sure the ``@InitOnce`` decorated ``__init__`` methods are called only once during the 
+    initialization process.
     """
-    pass
+    def __new__(__cls, *args, **kwargs):
+        # NOTE: Use ``__cls`` here to avoid naming conflicts.
+        if compare_method(super().__new__, object.__new__):
+            instance = super().__new__(__cls)
+        else:
+            instance = super().__new__(__cls, *args, **kwargs)
+        # Set ``init_once__`` cache here.
+        instance.init_once__ = {}
+        return instance
 
 #
 # Singleton base class

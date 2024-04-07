@@ -18,7 +18,7 @@ from .native import (
 )
 
 #
-# Special constants defined in slime_core.
+# Special constants defined in ``slime_core``.
 #
 
 class _SingletonMetaclass(type):
@@ -26,25 +26,27 @@ class _SingletonMetaclass(type):
     Singleton metaclass that makes a specific class a singleton class.
     
     Used for special constants. It is defined here rather than in ``slime_core.utils.metaclass``, because 
-    the typing module should be an independent module and can only be imported by other slime_core modules 
+    the typing module should be an independent module and can only be imported by other ``slime_core`` modules 
     (to avoid circular import error). The ``SingletonMetaclass`` in ``slime_core.utils.metaclass`` and 
-    ``Singleton`` in ``slime_core.utils.base`` are just based on this class for more general use.
+    ``Singleton`` in ``slime_core.utils.metaclass.metabase`` are just based on this class for more general use.
     
     NOTE: The ``_SingletonMetaclass`` works for each class (even subclasses) independently, because it sets 
     locks and ``__instance`` separately for each class it creates.
     """
-    def __init__(cls, *args, **kwargs):
+    def __init__(__cls, *args, **kwargs):
+        # NOTE: Use ``__cls`` here to avoid naming conflicts.
         super().__init__(*args, **kwargs)
-        cls.__t_lock = threading.Lock()
-        cls.__p_lock = multiprocessing.Lock()
-        cls.__instance = None
+        __cls.__t_lock = threading.Lock()
+        __cls.__p_lock = multiprocessing.Lock()
+        __cls.__instance = None
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        if self.__instance is None:
-            with self.__t_lock, self.__p_lock:
-                if self.__instance is None:
-                    self.__instance = super().__call__(*args, **kwargs)
-        return self.__instance
+    def __call__(__cls, *args: Any, **kwargs: Any) -> Any:
+        # NOTE: Use ``__cls`` here to avoid naming conflicts.
+        if __cls.__instance is None:
+            with __cls.__t_lock, __cls.__p_lock:
+                if __cls.__instance is None:
+                    __cls.__instance = super().__call__(*args, **kwargs)
+        return __cls.__instance
 
 
 # ``Nothing`` class, ``NOTHING`` instance and related functions.
@@ -86,14 +88,14 @@ class Nothing(metaclass=_SingletonMetaclass):
     # NOTHING <= 114514 (False)
     # NOTHING >= NOTHING (True)
     # NOTHING == NOTHING (True)
-    def __eq__(self, __value: Any, *args, **kwargs) -> bool:
-        if __value is NOTHING:
+    def __eq__(self, __other: Any, *args, **kwargs) -> bool:
+        if __other is NOTHING:
             return True
         return False
     def __lt__(self, *args, **kwargs) -> Literal[False]: return False
-    def __le__(self, __value: Any, *args, **kwargs) -> bool: return self == __value
+    def __le__(self, __other: Any, *args, **kwargs) -> bool: return self == __other
     def __gt__(self, *args, **kwargs) -> Literal[False]: return False
-    def __ge__(self, __value: Any, *args, **kwargs) -> bool: return self == __value
+    def __ge__(self, __other: Any, *args, **kwargs) -> bool: return self == __other
     # Attribute operations.
     def __getattr__(self, *args, **kwargs) -> "Nothing": return self
     def __getattribute__(self, *args, **kwargs) -> "Nothing": return self
@@ -194,7 +196,13 @@ class _FlagConstant(metaclass=_SingletonMetaclass):
 
 
 # ``Pass`` singleton constant
-class Pass(_FlagConstant): pass
+class Pass(_FlagConstant):
+    def __contains__(self, *args, **kwargs) -> Literal[True]:
+        """
+        NOTE: ``PASS`` is seen to contain anything.
+        """
+        return True
+
 PASS = Pass()
 
 
@@ -219,6 +227,7 @@ STOP = Stop()
 
 NoneOrNothing = Union[None, Nothing]
 EmptyFlag = Union[NoneOrNothing, Missing]
+SlimeConstant = Union[_FlagConstant, Nothing]
 
 
 def is_none_or_nothing(__obj: Any) -> bool:
@@ -240,6 +249,17 @@ def is_empty_flag(__obj: Any) -> bool:
         __obj is None or 
         __obj is NOTHING or 
         __obj is MISSING
+    )
+
+
+def is_slime_constant(__obj: Any) -> bool:
+    """
+    Check whether an object is a slime constant (i.e., ``NOTHING`` 
+    or a ``_FlagConstant`` object).
+    """
+    return (
+        __obj is NOTHING or 
+        isinstance(__obj, _FlagConstant)
     )
 
 #
@@ -284,6 +304,32 @@ def unwrap_method(__func: Union[FuncOrMethod, NoneOrNothing]) -> Union[RawFunc, 
     return __func
 
 
+def compare_method(__func1: FuncOrMethod, __func2: FuncOrMethod) -> bool:
+    """
+    Compare whether the two methods have the same static function reference.
+    
+    Example:
+    
+    ```Python
+    class A:
+        def method(self):
+            pass
+    
+    a1 = A()
+    a2 = A()
+    # False
+    print(a1.method is a1.method)
+    # False
+    print(a1.method is a2.method)
+    # True
+    print(compare_method(a1.method, a1.method))
+    # True
+    print(compare_method(a1.method, a2.method))
+    ```
+    """
+    return unwrap_method(__func1) is unwrap_method(__func2)
+
+
 def resolve_classname(__obj: Any) -> str:
     """
     Try to resolve the classname of the given object.
@@ -304,6 +350,30 @@ def resolve_classname(__obj: Any) -> str:
         return classname
     classname = repr(cls)
     return classname
+
+
+def resolve_private_attr_name(__cls: Type, __name: str) -> str:
+    """
+    Resolve the private attribute name based on the given class and the original name. Can 
+    be robust to the renaming refactor of the class (because the attr name is computed 
+    dynamically rather than a fixed str).
+    
+    Example:
+    
+    ```Python
+    class A:
+        def __init__(self):
+            self.__a = 1
+    
+    # _A__a
+    print(resolve_private_attr_name(A, '__a'))
+    
+    a_obj = A()
+    # 1
+    print(getattr(a_obj, resolve_private_attr_name(A, '__a')))
+    ```
+    """
+    return f'_{__cls.__name__}{__name}'
 
 
 def resolve_mro(__cls: Type) -> Tuple[Type, ...]:

@@ -1,3 +1,3 @@
 """
-slime_core util module.
+``slime_core`` util module.
 """

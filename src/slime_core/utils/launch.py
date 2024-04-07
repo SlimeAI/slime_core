@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from .typing.native import (
     Union,
     Callable,
@@ -10,7 +11,6 @@ from .typing.extension import (
     Pass,
     PASS
 )
-from abc import ABC, abstractmethod
 
 _T = TypeVar("_T")
 

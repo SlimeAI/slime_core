@@ -5,6 +5,7 @@ slime_core util base classes.
 # NOTE: ``BaseDict`` should be placed at the beginning of the file in order 
 # to avoid circular import error (caused by ``slime_core.logging.logger``).
 #
+from abc import ABCMeta
 from .typing.native import (
     TypeVar,
     MutableMapping,
@@ -17,7 +18,10 @@ from .typing.native import (
     Iterator
 )
 from .typing.extension import (
-    NoneOrNothing
+    resolve_classname,
+    EmptyFlag,
+    is_empty_flag,
+    MISSING
 )
 from .abc.base import (
     CoreBaseDict
@@ -32,7 +36,6 @@ from .metaclass import (
 from .decorator import (
     InitOnce
 )
-from abc import ABCMeta
 
 _KT = TypeVar("_KT")
 _VT = TypeVar("_VT")
@@ -42,30 +45,35 @@ _VT = TypeVar("_VT")
 #
 
 class BaseDict(
-    CoreBaseDict[_KT, _VT],
-    MutableMapping[_KT, _VT],
     InitOnceBase,
+    CoreBaseDict[_KT, _VT],
     Generic[_KT, _VT],
     metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
 ):
+    """
+    A dict-like (mutable mapping) object that wraps a real Python ``dict`` (or ``MutableMapping``). 
+    Compared to directly inheriting from ``dict``, ``BaseDict`` implements ``set_dict__`` method, 
+    which can conveniently change the ``dict`` reference without using ``copy``.
+    """
 
     @InitOnce
     def __init__(
         self,
-        __dict_like: Union[Dict[_KT, _VT], Iterable[Tuple[_KT, _VT]], NoneOrNothing] = None,
+        __dict_like: Union[MutableMapping[_KT, _VT], Iterable[Tuple[_KT, _VT]], EmptyFlag] = MISSING,
         **kwargs
     ):
-        self.__dict: Dict[_KT, _VT] = {}
-        if is_none_or_nothing(__dict_like):
+        self.__dict: MutableMapping[_KT, _VT] = {}
+        if is_empty_flag(__dict_like):
             __dict_like = {}
-        # Use ``self.update`` here to make the initialization process controllable.
-        # Otherwise, if ``self.__dict = dict(__dict_like, **kwargs)`` is used here, the initialization process won't be restricted by the user-defined operations.
+        # Use ``self.update`` here to make the initialization process controllable. Otherwise, if 
+        # ``self.__dict = dict(__dict_like, **kwargs)`` is used here, the initialization process 
+        # can't be restricted by the user-defined operations.
         self.update(__dict_like, **kwargs)
 
-    def set_dict__(self, __dict: Dict[_KT, _VT]) -> None:
+    def set_dict__(self, __dict: MutableMapping[_KT, _VT]) -> None:
         self.__dict = __dict
 
-    def get_dict__(self) -> Dict[_KT, _VT]:
+    def get_dict__(self) -> MutableMapping[_KT, _VT]:
         return self.__dict
     
     @overload
@@ -95,9 +103,9 @@ class BaseDict(
         return len(self.__dict)
     
     def __str__(self) -> str:
-        classname=str(self.__class__.__name__)
-        _id=str(hex(id(self)))
-        _dict=str(self.__dict)
+        classname = resolve_classname(self)
+        _id = str(hex(id(self)))
+        _dict = str(self.__dict)
         return f'{classname}<{_id}>({_dict})'
 
 #
@@ -105,10 +113,10 @@ class BaseDict(
 #
 
 import re
-import traceback
 from contextlib import ContextDecorator, ExitStack, contextmanager
 from functools import partial
 from types import TracebackType
+import slime_core.logging.logger as logger
 from .typing.native import (
     Any,
     List,
@@ -120,7 +128,8 @@ from .typing.native import (
     Generator,
     Callable,
     Set,
-    ContextManager
+    ContextManager,
+    Mapping
 )
 from .typing.extension import (
     NOTHING,
@@ -129,9 +138,11 @@ from .typing.extension import (
     PASS,
     is_none_or_nothing,
     Missing,
-    MISSING,
     unwrap_method,
-    STOP
+    STOP,
+    SlimeConstant,
+    is_slime_constant,
+    resolve_private_attr_name
 )
 from .decorator import (
     DecoratorCall
@@ -141,83 +152,87 @@ from .abc.base import (
     CoreBiListItem,
     CoreMutableBiListItem,
     CoreBiList,
-    CoreCompositeStructure
+    CoreCompositeStructure,
+    CoreScopedAttr,
+    CoreItemAttrSetBinding,
+    CoreItemAttrGetBinding,
+    CoreItemAttrDelBinding,
+    CoreItemAttrBinding,
+    CoreBase,
+    CoreBaseGenerator,
+    CoreContextGenerator,
+    CoreAttrObserver,
+    CoreAttrObservable
 )
-import slime_core.logging.logger as logger
 
-# TypeVars
 _T = TypeVar("_T")
+_SlimeConstantT = TypeVar("_SlimeConstantT", bound=SlimeConstant)
 
 #
 # Base List
 #
 
 class BaseList(
-    CoreBaseList[_T],
-    MutableSequence[_T],
     InitOnceBase,
+    CoreBaseList[_T],
     Generic[_T],
     metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
 ):
+    """
+    A list-like (mutable sequence) object that wraps a real Python ``list`` (or ``MutableSequence``). 
+    Compared to directly inheriting from ``list``, ``BaseList`` implements ``set_list__`` method, 
+    which can conveniently change the ``list`` reference without using ``copy``.
+    """
 
     @InitOnce
     def __init__(
         self,
-        __list_like: Union[Iterable[_T], NoneOrNothing] = None
+        __list_like: Union[Iterable[_T], EmptyFlag] = MISSING
     ):
-        self.__list: List[_T] = []
-        if not is_none_or_nothing(__list_like):
-            # Use ``self.extend`` here to make the initialization process controllable.
-            # Otherwise, if ``self.__list = list(__list_like)`` is used here, the initialization process won't be restricted by the user-defined operations.
+        self.__list: MutableSequence[_T] = []
+        if not is_empty_flag(__list_like):
+            # Use ``self.extend`` here to make the initialization process controllable. Otherwise, 
+            # if ``self.__list = list(__list_like)`` is used here, the initialization process can't 
+            # be restricted by the user-defined operations.
             self.extend(__list_like)
 
     @classmethod
     def create__(
         cls,
-        __list_like: Union[_T, Iterable[_T], NoneOrNothing, Pass] = None,
+        __list_like: Union[Iterable[_T], _SlimeConstantT, None] = None,
         *,
-        strict = False,
-        return_none: bool = True,
-        return_nothing: bool = True,
-        return_pass: bool = True
-    ):
-        # TODO: update document
+        return_constant: bool = True
+    ) -> Union["BaseList[_T]", _SlimeConstantT]:
         """
-        If the ``list_like`` object is ``None``, ``NOTHING`` or ``...`` and the corresponding return config is True, then
-        return itself, otherwise return ``BaseList`` object.
-        WARNING: This changes the default behavior of ``BaseList``, which creates an empty list when the list_like object is 
-        ``None`` or ``NOTHING`` and creates ``[...]`` when the list_like object is ``...``.
+        Similar to ``BaseList.__init__``, but can return ``__list_like`` itself if it is a slime 
+        constant and ``return_constant`` is ``True``.
+        
+        NOTE: The following two are equivalent:
+        
+        ```Python
+        # The first.
+        foo = BaseList.create__(bar, return_constant=True)
+        # The second.
+        foo = bar if is_slime_constant(bar) else BaseList(bar)
+        ```
         """
         if (
-            (__list_like is NOTHING and return_nothing is True) or 
-            (__list_like is None and return_none is True) or 
-            (__list_like is PASS and return_pass is True)
+            return_constant and 
+            is_slime_constant(__list_like)
         ):
-            # return the item itself
-            __list_like: Union[NoneOrNothing, Pass]
             return __list_like
-        # NOTE: ``isinstance(NOTHING, Iterable)`` will raise TypeError, 
-        # because ``NOTHING.__class__`` will still return ``NOTHING`` instance, 
-        # and it will fail in the ``issubclass`` function.
-        elif is_none_or_nothing(__list_like) or isinstance(__list_like, Iterable):
-            return cls(__list_like)
-        
-        if strict:
-            classname = type(__list_like).__name__
-            raise TypeError(f'BaseList - ``strict`` is True and ``{classname}`` object is not iterable')
-        else:
-            return cls([__list_like])
+        return cls(__list_like)
 
-    def set_list__(self, __list: List[_T]) -> None:
+    def set_list__(self, __list: MutableSequence[_T]) -> None:
         self.__list = __list
 
-    def get_list__(self) -> List[_T]:
+    def get_list__(self) -> MutableSequence[_T]:
         return self.__list
     
     @overload
     def __getitem__(self, __i: SupportsIndex) -> _T: pass
     @overload
-    def __getitem__(self, __s: slice) -> List[_T]: pass
+    def __getitem__(self, __s: slice) -> MutableSequence[_T]: pass
     @overload
     def __setitem__(self, __key: SupportsIndex, __value: _T) -> None: pass
     @overload
@@ -236,16 +251,16 @@ class BaseList(
     def __delitem__(self, __key):
         del self.__list[__key]
     
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__list)
     
     def insert(self, __index, __object):
         return self.__list.insert(__index, __object)
     
     def __str__(self) -> str:
-        classname=str(self.__class__.__name__)
-        _id=str(hex(id(self)))
-        _list=str(self.__list)
+        classname = resolve_classname(self)
+        _id = str(hex(id(self)))
+        _list = str(self.__list)
         return f'{classname}<{_id}>({_list})'
 
 #
@@ -262,14 +277,22 @@ class BiListItem(
     Generic[_BiListT],
     metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
 ):
+    """
+    Bidirectional list item, which keeps the reference of its parent.
+    
+    NOTE: The item can only have at most one parent at a time, and inserting or assigning 
+    an item that already has a parent to another ``BiList`` will trigger warning.
+    """
     
     @InitOnce
     def __init__(self) -> None:
-        self.__parent = NOTHING
+        self.__parent: Union[_BiListT, Nothing] = NOTHING
+        # Cache the name of the private attribute ``__parent``.
+        self.__parent_attr_name: str = resolve_private_attr_name(BiListItem, '__parent')
     
     def set_parent__(self, parent: _BiListT) -> None:
         prev_parent = self.get_parent__()
-        if not is_none_or_nothing(prev_parent) and parent is not prev_parent:
+        if not is_empty_flag(prev_parent) and parent is not prev_parent:
             # duplicate parent
             logger.core_logger.warning(
                 f'BiListItem ``{str(self)}`` has already had a parent, but another parent is set. '
@@ -279,7 +302,7 @@ class BiListItem(
         self.__parent = parent
     
     def get_parent__(self) -> Union[_BiListT, Nothing]:
-        return self.__parent if hasattr(self, '_BiListItem__parent') else NOTHING
+        return getattr(self, self.__parent_attr_name, NOTHING)
     
     def get_verified_parent__(self) -> Union[_BiListT, Nothing]:
         parent = self.get_parent__()
@@ -308,6 +331,9 @@ class MutableBiListItem(
     Generic[_MutableBiListItemT, _BiListT],
     metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
 ):
+    """
+    Similar to ``BiListItem``, but defines more modification operations.
+    """
     def replace_self__(self, __item: _MutableBiListItemT) -> None:
         parent = self.get_verified_parent__()
         index = parent.index(self)
@@ -330,7 +356,15 @@ class MutableBiListItem(
 
 _BiListItemT = TypeVar("_BiListItemT", bound=BiListItem)
 
-class BiList(BaseList[_BiListItemT], CoreBiList[_BiListItemT], Generic[_BiListItemT]):
+
+class BiList(
+    BaseList[_BiListItemT],
+    CoreBiList[_BiListItemT],
+    Generic[_BiListItemT]
+):
+    """
+    The ``BiList`` container that contains ``BiListItem``.
+    """
     
     def set_list__(self, __list: List[_BiListItemT]) -> None:
         prev_list = self.get_list__()
@@ -385,36 +419,107 @@ class BiList(BaseList[_BiListItemT], CoreBiList[_BiListItemT], Generic[_BiListIt
         return super().insert(__index, __item)
 
 #
-# Scoped Attribute
+# Scoped Attribute.
 #
 
-class ScopedAttr:
+class ScopedAttrRestore(ContextDecorator, Generic[_T]):
+
+    def __init__(
+        self,
+        obj: _T,
+        attrs: Iterable[str]
+    ) -> None:
+        self.obj = obj
+        self.attrs = list(attrs)
+        self.prev_value_dict: Dict[str, Any] = {}
+
+    def __enter__(self) -> "ScopedAttrRestore[_T]":
+        for attr in self.attrs:
+            # Only cache existing attributes of ``obj``.
+            if hasattr(self.obj, attr):
+                self.prev_value_dict[attr] = getattr(self.obj, attr, NOTHING)
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        for attr in self.attrs:
+            try:
+                if attr in self.prev_value_dict:
+                    # Restore previously existing attributes before the scope.
+                    setattr(self.obj, attr, self.prev_value_dict[attr])
+                elif hasattr(self.obj, attr):
+                    # Remove previously non-existing attributes before the scope.
+                    delattr(self.obj, attr)
+            except Exception as e:
+                logger.core_logger.error(
+                    f'Restoring scoped attribute failed. Object: {str(self.obj)}, '
+                    f'attribute: {attr}. {resolve_classname(e)}: {str(e)}'
+                )
+
+
+class ScopedAttrAssign(ScopedAttrRestore[_T], Generic[_T]):
+
+    def __init__(
+        self,
+        obj: _T,
+        attr_assign: Dict[str, Any]
+    ) -> None:
+        super().__init__(obj, attr_assign.keys())
+        self.attr_assign = attr_assign
+
+    def __enter__(self) -> "ScopedAttrAssign[_T]":
+        # backup previous values
+        ret = super().__enter__()
+        for attr, value in self.attr_assign.items():
+            try:
+                setattr(self.obj, attr, value)
+            except Exception as e:
+                logger.core_logger.error(
+                    f'Assigning scoped attribute failed. Object: {str(self.obj)}, '
+                    f'attribute: {attr}. {resolve_classname(e)}: {str(e)}'
+                )
+        return ret
+
+
+class ScopedAttr(CoreScopedAttr[ScopedAttrAssign, ScopedAttrRestore]):
+    """
+    Helper class that implements ``ScopedAttrAssign`` and ``ScopedAttrRestore`` 
+    through methods.
+    """
     
     def __init__(self) -> None: pass
     
-    def assign__(self, **attr_assign) -> "ScopedAttrAssign":
+    def assign__(self, **attr_assign) -> ScopedAttrAssign:
         return ScopedAttrAssign(self, attr_assign)
     
-    def restore__(self, *attrs: str) -> "ScopedAttrRestore":
+    def restore__(self, *attrs: str) -> ScopedAttrRestore:
         return ScopedAttrRestore(self, attrs)
 
 #
 # ItemAttrBinding
 #
 
-class ItemAttrSetBinding:
+class ItemAttrSetBinding(CoreItemAttrSetBinding):
+    """
+    Bind ``__setitem__`` to ``__setattr__``.
+    """
     
     def __setitem__(self, __name: str, __value: Any) -> None:
         return setattr(self, __name, __value)
 
 
-class ItemAttrGetBinding:
+class ItemAttrGetBinding(CoreItemAttrGetBinding):
+    """
+    Bind ``__getitem__`` to ``getattr``.
+    """
     
     def __getitem__(self, __name: str) -> Any:
         return getattr(self, __name)
 
 
-class ItemAttrDelBinding:
+class ItemAttrDelBinding(CoreItemAttrDelBinding):
+    """
+    Bind ``__delitem__`` to ``delattr``.
+    """
     
     def __delitem__(self, __name: str) -> None:
         return delattr(self, __name)
@@ -423,9 +528,11 @@ class ItemAttrDelBinding:
 class ItemAttrBinding(
     ItemAttrSetBinding,
     ItemAttrGetBinding,
-    ItemAttrDelBinding
+    ItemAttrDelBinding,
+    CoreItemAttrBinding
 ):
     """
+    Bind item operations to attribute operations.
     """
     pass
 
@@ -433,7 +540,13 @@ class ItemAttrBinding(
 # Base
 #
 
-class Base(ScopedAttr, ItemAttrBinding, InitOnceBase):
+class Base(
+    ScopedAttr,
+    ItemAttrBinding,
+    InitOnceBase,
+    CoreBase[ScopedAttrAssign, ScopedAttrRestore],
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+):
     """
     Base class, making its subclasses be able to use '[]' operations(just like python dict).
     Return 'Nothing' if the object does not have the property being retrieved, without throwing Errors.
@@ -444,83 +557,44 @@ class Base(ScopedAttr, ItemAttrBinding, InitOnceBase):
     def __init__(self) -> None:
         ScopedAttr.__init__(self)
         ItemAttrBinding.__init__(self)
+        InitOnceBase.__init__(self)
 
-    def from_kwargs__(self, **kwargs):
+    def from_kwargs__(self, **kwargs) -> None:
         self.from_dict__(kwargs)
 
-    def from_dict__(self, __dict: Dict[str, Any]):
-        """assign properties to the object using a dict.
-        Args:
-            kwargs (Dict): property dict.
-        """
+    def from_dict__(self, __dict: Mapping[str, Any]) -> None:
         self.__dict__.update(__dict)
-
-    def check__(self, item: str):
-        """check whether the object has a specific attribute.
-        dot operator supported.
-        Args:
-            items (str): _description_
-        """
-        attrs = item.split('.')
-        temp = self
-        for attr in attrs:
-            try:
-                temp = temp[attr]
-                # if the value is NOTHING, then return False directly.
-                if temp is NOTHING:
-                    return False
-            except Exception:
-                # output error information
-                self.process_exc__()
-                return False
-        return True
-
+    
     def hasattr__(self, __name: str) -> bool:
-        return str(__name) in self.__dict__
+        return hasattr(self, __name)
 
-    @staticmethod
-    def process_exc__():
-        # output error
-        logger.core_logger.error(
-            'Python exception raised:\n' +
-            traceback.format_exc()
-        )
-        return NOTHING
-
-    def pop__(self, __name: str):
-        attr = getattr(self, __name)
-        delattr(self, __name)
-        return attr
-
-    def __getattr__(self, *_):
-        return NOTHING
-
-    def __delattr__(self, __name: str) -> None:
-        # safe delete
-        try:
-            return super().__delattr__(__name)
-        except AttributeError:
-            return
+    def pop__(self, __name: str, __default: Any = MISSING) -> Any:
+        if self.hasattr__(__name):
+            value = getattr(self, __name)
+            delattr(self, __name)
+        else:
+            value = __default
+        return value
     
     def __str__(self) -> str:
         from .common import dict_to_key_value_str
-        classname=str(self.__class__.__name__)
-        _id=str(hex(id(self)))
-        _dict=dict_to_key_value_str(self.__dict__)
+        classname = resolve_classname(self)
+        _id = str(hex(id(self)))
+        _dict = dict_to_key_value_str(self.__dict__)
         return f'{classname}<{_id}>({_dict})'
 
 #
 # Base Generator
 #
 
-# Type Vars
 _YieldT_co = TypeVar("_YieldT_co", covariant=True)
 _SendT_contra = TypeVar("_SendT_contra", contravariant=True)
 _ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 
+
 class BaseGenerator(
-    Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
     InitOnceBase,
+    CoreBaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
     Generic[_YieldT_co, _SendT_contra, _ReturnT_co],
     metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
 ):
@@ -540,7 +614,6 @@ class BaseGenerator(
             raise TypeError(f'Argument ``__gen`` should be a generator.')
         self.gen = __gen
         self.stop_allowed = stop_allowed
-        
         self.stop = False
 
     def __call__(self) -> _YieldT_co:
@@ -552,20 +625,20 @@ class BaseGenerator(
     @overload
     def throw(
         self,
-        __typ: Type[BaseException],
-        __val: Union[BaseException, object] = None,
-        __tb: Union[TracebackType, None] = None
+        __exc_type: Type[BaseException],
+        __exc_value: Union[BaseException, object] = None,
+        __traceback: Union[TracebackType, None] = None
     ) -> _YieldT_co: pass
     @overload
     def throw(
         self,
-        __typ: BaseException,
-        __val: None = None,
-        __tb: Union[TracebackType, None] = None
+        __exc_type: BaseException,
+        __exc_value: None = None,
+        __traceback: Union[TracebackType, None] = None
     ) -> _YieldT_co: pass
 
-    def throw(self, __typ, __val=None, __tb=None) -> _YieldT_co:
-        return self.call__(partial(self.gen.throw, __typ, __val, __tb))
+    def throw(self, __exc_type, __exc_value=None, __traceback=None) -> _YieldT_co:
+        return self.call__(partial(self.gen.throw, __exc_type, __exc_value, __traceback))
 
     def call__(self, __caller: Callable[[], _T]) -> Union[_T, Pass]:
         if self.stop and not self.stop_allowed:
@@ -585,8 +658,8 @@ class BaseGenerator(
 
 class ContextGenerator(
     BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
-    ContextManager,
     InitOnceBase,
+    CoreContextGenerator[_YieldT_co, _SendT_contra, _ReturnT_co, _YieldT_co],
     Generic[_YieldT_co, _SendT_contra, _ReturnT_co],
     metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
 ):
@@ -611,7 +684,7 @@ class ContextGenerator(
         super().__init__(__gen, stop_allowed=stop_allowed)
         self.exit_send_value = exit_send_value
     
-    def __enter__(self) -> Any:
+    def __enter__(self) -> _YieldT_co:
         """
         Call ``next`` and return the yield value from the generator.
         """
@@ -642,7 +715,7 @@ class ContextGenerator(
             self.gen.throw(*exception)
         except Exception as e:
             exception = (
-                e.__class__,
+                type(e),
                 e,
                 e.__traceback__
             )
@@ -659,9 +732,10 @@ class ContextGenerator(
 
 _BaseGeneratorT = TypeVar("_BaseGeneratorT", bound=BaseGenerator)
 
+
 @contextmanager
 def BaseGeneratorQueue(
-    __base_generators: Union[Iterable[_BaseGeneratorT], NoneOrNothing] = None
+    __base_generators: Union[Iterable[_BaseGeneratorT], EmptyFlag] = MISSING
 ) -> Generator[Tuple, Any, Any]:
     """
     Sequentially call the generators on ``__enter__`` and ``__exit__``. Tuple of 
@@ -686,9 +760,10 @@ def BaseGeneratorQueue(
 
 _ContextManagerT = TypeVar("_ContextManagerT", bound=ContextManager)
 
+
 @contextmanager
 def ContextManagerStack(
-    __context_managers: Union[Iterable[_ContextManagerT], NoneOrNothing] = None
+    __context_managers: Union[Iterable[_ContextManagerT], EmptyFlag] = MISSING
 ) -> Generator[Tuple, Any, Any]:
     """
     Call context managers in FILO order. Exceptions will be passed through each 
@@ -805,6 +880,9 @@ def CompositeBFS(
 #
 
 class AttrProxy(InitOnceBase, Generic[_T]):
+    """
+    Proxy the attribute get of the given attribute list to the proxied object.
+    """
     
     @InitOnce
     def __init__(
@@ -813,15 +891,21 @@ class AttrProxy(InitOnceBase, Generic[_T]):
         __attrs: List[str]
     ) -> None:
         super().__init__()
-        self.obj__ = __obj
-        self.attrs__ = __attrs
+        self.__obj = __obj
+        self.__attrs = __attrs
+        self.__escape_proxy_names = (
+            resolve_private_attr_name(AttrProxy, '__obj'),
+            resolve_private_attr_name(AttrProxy, '__attrs')
+        )
     
     def __getattribute__(self, __name: str) -> Any:
-        if __name in ['obj__', 'attrs__']:
+        if __name in super().__getattribute__(
+            resolve_private_attr_name(AttrProxy, '__escape_proxy_names')
+        ):
             return super().__getattribute__(__name)
         # attr proxy
-        if __name in self.attrs__:
-            return getattr(self.obj__, __name)
+        if __name in self.__attrs:
+            return getattr(self.__obj, __name)
         return super().__getattribute__(__name)
 
 #
@@ -835,7 +919,7 @@ OBSERVE_NAMESPACE = 'observe_namespace__'
 ObserveFuncType = Callable[[Any, Any, "AttrObservable"], None]
 
 
-class _ObservableInfo:
+class _AttrObservableInfo:
     
     def __init__(
         self,
@@ -856,18 +940,18 @@ class _ObservableInfo:
         return len(self.attr_set) < 1
 
 
-class _ObservableDict(BaseDict[str, _ObservableInfo]):
+class _AttrObservableDict(BaseDict[str, _AttrObservableInfo]):
     
     @staticmethod
     def get_observable_id__(__observable: "AttrObservable") -> str:
-        # this behavior may change through different slime_core versions
+        # this behavior may change through different ``slime_core`` versions
         return str(id(__observable))
     
     def add__(self, __observable: "AttrObservable", __name: str) -> None:
         observable_id = self.get_observable_id__(__observable)
         
         if observable_id not in self:
-            self[observable_id] = _ObservableInfo(__observable)
+            self[observable_id] = _AttrObservableInfo(__observable)
         self[observable_id].add_attr__(__name)
     
     def remove__(self, __observable: "AttrObservable", __name: str) -> None:
@@ -891,16 +975,20 @@ class _ObservableDict(BaseDict[str, _ObservableInfo]):
         return self.get_observable_id__(__observable) in self
 
 
-class AttrObserver(InitOnceBase):
+class AttrObserver(
+    InitOnceBase,
+    CoreAttrObserver,
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+):
     
     @InitOnce
     def __init__(self) -> None:
-        self.__observable_dict = _ObservableDict()
+        self.__observable_dict = _AttrObservableDict()
     
     @staticmethod
     def check_namespace__(
         func: ObserveFuncType,
-        namespaces: Union[Sequence[str], Missing, NoneOrNothing]
+        namespaces: Union[Sequence[str], EmptyFlag]
     ) -> bool:
         return (
             # ``None`` or ``NOTHING`` namespace won't match any function.
@@ -915,7 +1003,7 @@ class AttrObserver(InitOnceBase):
     
     def detach_inspect__(
         self,
-        namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
+        namespaces: Union[Sequence[str], EmptyFlag] = MISSING
     ) -> Dict[str, ObserveFuncType]:
         return self.observe_inspect__(
             # Check namespace.
@@ -924,7 +1012,7 @@ class AttrObserver(InitOnceBase):
     
     def attach_inspect__(
         self,
-        namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
+        namespaces: Union[Sequence[str], EmptyFlag] = MISSING
     ) -> Dict[str, ObserveFuncType]:
         return self.observe_inspect__(
             # Check namespace.
@@ -963,14 +1051,15 @@ class AttrObserver(InitOnceBase):
         return observe_dict
     
     def detach_all__(self) -> None:
-        # NOTE: create a new list of ``__observable_dict.values()`` to avoid value change during iteration.
+        # NOTE: create a new list of ``__observable_dict.values()`` to 
+        # avoid value change during iteration.
         for observable_info in list(self.__observable_dict.values()):
             observable_info.observable.detach__(self)
     
     def __del__(self) -> None:
         self.detach_all__()
     
-    def get_observable_dict__(self) -> _ObservableDict:
+    def get_observable_dict__(self) -> _AttrObservableDict:
         return self.__observable_dict
 
 
@@ -997,8 +1086,12 @@ class _AttrObserverDict(BaseDict[str, List[AttrObserver]]):
                 del self[__name]
 
 
-class AttrObservable(InitOnceBase):
-    
+class AttrObservable(
+    InitOnceBase,
+    CoreAttrObservable,
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+):
+
     @InitOnce
     def __init__(self) -> None:
         # attr name to observers
@@ -1009,7 +1102,7 @@ class AttrObservable(InitOnceBase):
         __observer: AttrObserver,
         *,
         init: Union[bool, Missing] = MISSING,
-        namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
+        namespaces: Union[Sequence[str], EmptyFlag] = MISSING
     ) -> None:
         observe_dict = __observer.attach_inspect__(namespaces)
         
@@ -1025,7 +1118,7 @@ class AttrObservable(InitOnceBase):
             ) if init is MISSING else init
             self.attach_attr__(__observer, name, init=bool(attr_init))
     
-    def attach_attr__(self, __observer: AttrObserver, __name: str, *, init: bool = True):
+    def attach_attr__(self, __observer: AttrObserver, __name: str, *, init: bool = True) -> None:
         self.__attr_observer_dict.add__(__name, __observer)
         __observer.get_observable_dict__().add__(self, __name)
         
@@ -1037,7 +1130,7 @@ class AttrObservable(InitOnceBase):
         self,
         __observer: AttrObserver,
         *,
-        namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
+        namespaces: Union[Sequence[str], EmptyFlag] = MISSING
     ) -> None:
         observable_dict = __observer.get_observable_dict__()
         if not observable_dict.contains__(self):
@@ -1098,6 +1191,9 @@ def AttrObserve(
     init: bool = True,
     namespace: Union[str, Missing] = MISSING
 ):
+    """
+    Set observe settings to the observe func.
+    """
     def set__(item: ObserveFuncType, name: str, value: Any):
         try:
             setattr(item, name, value)
@@ -1112,64 +1208,3 @@ def AttrObserve(
         set__(func, OBSERVE_NAMESPACE, namespace)
         return func
     return decorator
-
-#
-# Scoped Attr Utils
-#
-
-class ScopedAttrRestore(ContextDecorator, Generic[_T]):
-
-    def __init__(
-        self,
-        obj: _T,
-        attrs: Iterable[str]
-    ) -> None:
-        self.obj = obj
-        self.attrs = list(attrs)
-        self.prev_value_dict: Dict[str, Any] = {}
-
-    def __enter__(self) -> "ScopedAttrRestore":
-        for attr in self.attrs:
-            # Only cache existing attributes of ``obj``.
-            if hasattr(self.obj, attr):
-                self.prev_value_dict[attr] = getattr(self.obj, attr, NOTHING)
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        for attr in self.attrs:
-            try:
-                if attr in self.prev_value_dict:
-                    # Restore previously existing attributes before the scope.
-                    setattr(self.obj, attr, self.prev_value_dict[attr])
-                elif hasattr(self.obj, attr):
-                    # Remove previously non-existing attributes before the scope.
-                    delattr(self.obj, attr)
-            except Exception as e:
-                logger.core_logger.error(
-                    f'Restoring scoped attribute failed. Object: {str(self.obj)}, '
-                    f'attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}'
-                )
-
-
-class ScopedAttrAssign(ScopedAttrRestore[_T], Generic[_T]):
-
-    def __init__(
-        self,
-        obj: _T,
-        attr_assign: Dict[str, Any]
-    ) -> None:
-        super().__init__(obj, attr_assign.keys())
-        self.attr_assign = attr_assign
-
-    def __enter__(self) -> "ScopedAttrAssign":
-        # backup previous values
-        ret = super().__enter__()
-        for attr, value in self.attr_assign.items():
-            try:
-                setattr(self.obj, attr, value)
-            except Exception as e:
-                logger.core_logger.error(
-                    f'Assigning scoped attribute failed. Object: {str(self.obj)}, '
-                    f'attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}'
-                )
-        return ret

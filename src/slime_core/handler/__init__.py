@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from slime_core.utils.common import Count
 from slime_core.utils.abc.base import (
     CoreMutableBiListItem,
@@ -22,7 +23,6 @@ from slime_core.utils.typing.extension import (
     Pass,
     Nothing
 )
-from abc import ABC, abstractmethod
 
 _ContextT = TypeVar("_ContextT")
 _HandlerT = TypeVar("_HandlerT")
@@ -121,7 +121,7 @@ class CoreHandler(
         """
         Simple handler str formatter.
         """
-        pass
+        return super().__str__()
     
     @abstractmethod
     def get_display_attr_dict(self) -> Dict[str, Any]:
@@ -135,7 +135,7 @@ class CoreHandler(
     #
     
     @abstractmethod
-    def get_class_name(self) -> str:
+    def get_classname(self) -> str:
         """
         Get the class name of the handler (for display).
         """

@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from slime_core.utils.typing.native import (
     Dict,
     Any,
@@ -11,7 +12,6 @@ from slime_core.utils.typing.extension import (
     Nothing
 )
 from slime_core.utils.common import FuncParams
-from abc import ABC, abstractmethod
 
 _ContextT = TypeVar("_ContextT")
 _ArgsT = TypeVar('_ArgsT')

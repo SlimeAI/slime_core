@@ -1,9 +1,16 @@
 """
 Metaclasses used in slime_core.
-We name all the metaclasses with ``Metaclass`` rather than the abbreviation 
-``Meta``, because there already exists the ``Meta`` feature (although it has 
-been deprecated), and we want to distinguish between these two concepts.
+
+NOTE: It is recommended to inherit classes in the ``metabase`` rather than directly 
+specifying the metaclass using metaclasses defined here, because some metaclasses 
+should be used together with a plain super class (e.g., ``ReadonlyAttr``), and 
+directly specifying them as the metaclass won't work.
+
+NOTE: We name all the metaclasses with ``Metaclass`` rather than the abbreviation 
+``Meta``, because there already exists the ``Meta`` feature (although it has been 
+deprecated), and we want to distinguish between these two concepts.
 """
+from itertools import filterfalse, chain
 from slime_core.utils.typing.native import (
     TypeVar,
     Type,
@@ -25,7 +32,6 @@ from slime_core.utils.typing.extension import (
     resolve_mro,
     class_difference
 )
-from itertools import filterfalse, chain
 if TYPE_CHECKING:
     from .metabase import ReadonlyAttr
 
@@ -55,32 +61,41 @@ def is_metaclass_adapter(cls: Type) -> bool:
     return getattr(cls, 'metaclass_adapter__', MISSING) is True
 
 
-class InstanceCreationHookMetaclass(type):
+class CallHookMetaclass(type):
     """
-    This metaclass breaks the inheritance chain of ``__call__`` method, so 
-    it should better be the highest possible level base class.
+    Hooks before and after ``__call__`` method in the metaclass.
     """
     
-    def __call__(cls, *args, **kwargs):
-        instance = cls.new_hook_metaclass__(*args, **kwargs)
-        if isinstance(instance, cls):
-            cls.init_hook_metaclass__(instance, args=args, kwargs=kwargs)
+    def __call__(__cls, *args, **kwargs):
+        # NOTE: Use ``__cls`` here to avoid naming conflicts.
+        __cls.before_call_metaclass__(args, kwargs)
+        instance = super().__call__(*args, **kwargs)
+        __cls.after_call_metaclass__(instance=instance, args=args, kwargs=kwargs)
         return instance
     
-    def new_hook_metaclass__(cls, *args, **kwargs):
-        return cls.__new__(cls, *args, **kwargs)
+    def before_call_metaclass__(cls, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
+        """
+        Hook before the ``__call__`` method.
+        """
+        pass
     
-    def init_hook_metaclass__(cls, instance, args: Tuple, kwargs: Dict[str, Any]) -> None:
-        # init
-        cls.__init__(instance, *args, **kwargs)
+    def after_call_metaclass__(cls, instance, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
+        """
+        Hook after the ``__call__`` method.
+        """
+        pass
 
 
-class InitOnceMetaclass(InstanceCreationHookMetaclass):
+class InitOnceMetaclass(CallHookMetaclass):
+    """
+    Make sure the ``@InitOnce`` decorated ``__init__`` methods are called only once during the 
+    initialization process. NOTE: This metaclass should NOT be used independently. Inherit 
+    ``slime_core.utils.metaclass.metabase.InitOnceBase`` instead.
+    """
     
-    def init_hook_metaclass__(cls, instance, args: Tuple, kwargs: Dict[str, Any]) -> None:
-        instance.init_once__ = {}
-        super().init_hook_metaclass__(instance, args, kwargs)
+    def after_call_metaclass__(cls, instance, args: Tuple[Any], kwargs: Dict[str, Any]) -> None:
         if hasattr(instance, 'init_once__'):
+            # Remove ``init_once__`` after initialization.
             del instance.init_once__
 
 
@@ -95,23 +110,24 @@ class SingletonMetaclass(_SingletonMetaclass):
 _ReadonlyAttrT = TypeVar("_ReadonlyAttrT", bound="ReadonlyAttr")
 
 
-class _ReadonlyAttrMetaclass(type):
+class ReadonlyAttrMetaclass(type):
     """
     Metaclass that checks readonly attributes. It should NOT be used independently. 
-    Directly inherit ``slime_core.utils.base.ReadonlyAttr`` instead.
+    Directly inherit ``slime_core.utils.metaclass.metabase.ReadonlyAttr`` instead.
     """
 
     def __new__(
-        meta_cls,
+        __meta_cls,
         __name: str,
         __bases: Tuple[Type, ...],
         __namespace: Dict[str, Any],
         **kwargs: Any
     ):
+        # NOTE: Use ``__meta_cls`` here to avoid naming conflicts.
         # Check ``readonly_attr__`` defined in the class. If undefined, set it to ``()``.
         readonly_attr__: Tuple[str, ...] = __namespace.setdefault('readonly_attr__', ())
         # Create new class.
-        cls: Type[_ReadonlyAttrT] = super().__new__(meta_cls, __name, __bases, __namespace, **kwargs)
+        cls: Type[_ReadonlyAttrT] = super().__new__(__meta_cls, __name, __bases, __namespace, **kwargs)
         
         readonly_attr_computed_set = set(readonly_attr__)
         for base in __bases:
@@ -119,6 +135,10 @@ class _ReadonlyAttrMetaclass(type):
         
         cls.readonly_attr_computed__ = frozenset(readonly_attr_computed_set)
         return cls
+
+
+# NOTE: For backward compatibility.
+_ReadonlyAttrMetaclass = ReadonlyAttrMetaclass
 
 #
 # Automatically make compatible metaclasses in multiple inheritance scenarios.
