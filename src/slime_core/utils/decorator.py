@@ -70,6 +70,9 @@ def Experimental():
     # TODO
     pass
 
+#
+# RemoveOverload.
+#
 
 OVERLOAD_FUNC = 'overload_func__'
 
@@ -86,9 +89,17 @@ def OverloadFunc(_func: _FuncOrMethodT) -> _FuncOrMethodT:
 
 
 @overload
-def RemoveOverload(_cls: Missing = MISSING, *, checklist: Union[Missing, List[str]] = MISSING) -> Callable[[Type[_T]], Type[_T]]: pass
+def RemoveOverload(
+    _cls: Missing = MISSING,
+    *,
+    checklist: Union[Missing, List[str]] = MISSING
+) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
-def RemoveOverload(_cls: Type[_T], *, checklist: Union[Missing, List[str]] = MISSING) -> Type[_T]: pass
+def RemoveOverload(
+    _cls: Type[_T],
+    *,
+    checklist: Union[Missing, List[str]] = MISSING
+) -> Type[_T]: pass
 
 @DecoratorCall(index=0, keyword='_cls')
 def RemoveOverload(_cls=MISSING, *, checklist: Union[Missing, List[str]] = MISSING):
@@ -124,11 +135,22 @@ def RemoveOverload(_cls=MISSING, *, checklist: Union[Missing, List[str]] = MISSI
         return cls
     return decorator
 
+#
+# FuncSetAttr.
+#
 
 @overload
-def FuncSetAttr(_func: Missing = MISSING, *, attr_dict: Dict[str, Any]) -> Callable[[_FuncOrMethodT], _FuncOrMethodT]: pass
+def FuncSetAttr(
+    _func: Missing = MISSING,
+    *,
+    attr_dict: Dict[str, Any]
+) -> Callable[[_FuncOrMethodT], _FuncOrMethodT]: pass
 @overload
-def FuncSetAttr(_func: _FuncOrMethodT, *, attr_dict: Dict[str, Any]) -> _FuncOrMethodT: pass
+def FuncSetAttr(
+    _func: _FuncOrMethodT,
+    *,
+    attr_dict: Dict[str, Any]
+) -> _FuncOrMethodT: pass
 
 @DecoratorCall(index=0, keyword='_func')
 def FuncSetAttr(_func=MISSING, *, attr_dict: Dict[str, Any]):
@@ -145,21 +167,47 @@ def FuncSetAttr(_func=MISSING, *, attr_dict: Dict[str, Any]):
         return func
     return decorator
 
+#
+# InitOnce.
+#
 
-def InitOnce(_func: _FuncOrMethodT) -> _FuncOrMethodT:
+INIT_ONCE_ATTR_NAME = 'init_once__'
+
+
+@overload
+def InitOnce(
+    _func: Missing = MISSING,
+    *,
+    setattr_func: Union[Callable[[object, str, Any], None], Missing] = MISSING,
+    getattr_func: Union[Callable[[object, str, Any], Any], Missing] = MISSING
+) -> Callable[[_FuncOrMethodT], _FuncOrMethodT]: pass
+@overload
+def InitOnce(
+    _func: _FuncOrMethodT,
+    *,
+    setattr_func: Union[Callable[[object, str, Any], None], Missing] = MISSING,
+    getattr_func: Union[Callable[[object, str, Any], Any], Missing] = MISSING
+) -> _FuncOrMethodT: pass
+
+@DecoratorCall(index=0, keyword='_func')
+def InitOnce(
+    _func=MISSING,
+    *,
+    setattr_func: Union[Callable[[object, str, Any], None], Missing] = MISSING,
+    getattr_func: Union[Callable[[object, str, Any], Any], Missing] = MISSING
+):
     """
-    Used for ``__init__`` operations in multiple inheritance scenarios.
-    Should be used together with ``slime_core.utils.metaclass.InitOnceMetaclass``.
-    When ``__init__`` is decorated with ``InitOnce``, it will be called only once during 
-    each instance creation. NOTE that there is an exception that if one ``__init__`` call
-    raises an Exception and it is successfully caught and processed, this ``__init__`` 
-    method may be called again by other methods. Because of this, ``InitOnce`` only ensure 
-    'at most one successful call' rather than 'one call'.
+    Used for ``__init__`` operations in multiple inheritance scenarios. When ``__init__`` 
+    is decorated with ``@InitOnce``, it can be called only once. NOTE that there is an 
+    exception that if one ``__init__`` call raises an Exception and it is successfully 
+    caught and processed, this ``__init__`` method may be called again by other methods. 
+    Because of this, ``InitOnce`` only ensure 'at most one successful call' rather than 
+    'one call'.
     
     Example:
     
     ```Python
-    class Example(metaclass=InitOnceMetaclass):
+    class Example:
         @InitOnce
         def __init__(self, arg1, arg2):
             print('Example.__init__', arg1, arg2)
@@ -185,29 +233,38 @@ def InitOnce(_func: _FuncOrMethodT) -> _FuncOrMethodT:
     \"""
     ```
     """
-    func_id = str(id(_func))
-    
-    @wraps(_func)
-    def wrapper(self, *args, **kwargs) -> Union[_T, None]:
-        init_once__: Union[Dict, Missing] = getattr(self, 'init_once__', MISSING)
-        # whether the instance is being created.
-        instance_creating = init_once__ is not MISSING
-        # whether the instance is being created AND this ``__init__`` method has not been called.
-        uninitialized = instance_creating and not init_once__.get(func_id, False)
+    def decorator(func: _FuncOrMethodT) -> _FuncOrMethodT:
+        func_id = str(id(func))
         
-        ret = None
-        if not instance_creating or uninitialized:
-            # call the ``__init__`` method.
-            ret = _func(self, *args, **kwargs)
-        
-        if uninitialized:
-            """
-            mark this ``__init__`` has been called.
-            Note that it is after ``func`` is called, so ``InitOnce`` only ensure 
-            'at most one successful call' rather than 'one call'.
-            """
-            init_once__[func_id] = True
-        
-        return ret
+        @wraps(func)
+        def wrapper(self, *args, **kwargs) -> None:
+            # NOTE: The default behaviors of ``getattr`` and ``setattr`` are based on ``object``, 
+            # because the ``__init__`` method has not been called before ``getattr`` and ``setattr``, 
+            # but some custom attr methods may require ``__init__`` to be called.
+            # Try to get ``init_once__`` attribute.
+            if getattr_func is MISSING:
+                try:
+                    init_once__: Dict = object.__getattribute__(self, INIT_ONCE_ATTR_NAME)
+                except AttributeError:
+                    init_once__ = MISSING
+            else:
+                init_once__: Union[Dict, Missing] = getattr_func(self, INIT_ONCE_ATTR_NAME, MISSING)
+            
+            if init_once__ is MISSING:
+                # Set ``init_once__`` if it does not exists.
+                init_once__ = {}
+                if setattr_func is MISSING:
+                    object.__setattr__(self, INIT_ONCE_ATTR_NAME, init_once__)
+                else:
+                    setattr_func(self, INIT_ONCE_ATTR_NAME, init_once__)
+            
+            if not init_once__.get(func_id, False):
+                # call the ``__init__`` method.
+                func(self, *args, **kwargs)
+                # mark this ``__init__`` has been called.
+                # Note that it is after ``func`` is called, so ``InitOnce`` only ensure 
+                # 'at most one successful call' rather than 'one call'.
+                init_once__[func_id] = True
 
-    return wrapper
+        return wrapper
+    return decorator

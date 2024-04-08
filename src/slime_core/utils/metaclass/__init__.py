@@ -86,19 +86,6 @@ class CallHookMetaclass(type):
         pass
 
 
-class InitOnceMetaclass(CallHookMetaclass):
-    """
-    Make sure the ``@InitOnce`` decorated ``__init__`` methods are called only once during the 
-    initialization process. NOTE: This metaclass should NOT be used independently. Inherit 
-    ``slime_core.utils.metaclass.metabase.InitOnceBase`` instead.
-    """
-    
-    def after_call_metaclass__(cls, instance, args: Tuple[Any], kwargs: Dict[str, Any]) -> None:
-        if hasattr(instance, 'init_once__'):
-            # Remove ``init_once__`` after initialization.
-            del instance.init_once__
-
-
 class SingletonMetaclass(_SingletonMetaclass):
     """
     Makes a specific class a singleton class. Inherits ``_SingletonMetaclass`` in 

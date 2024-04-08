@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 class ScopedStore(Base, AttrObservable):
     """
-    A global scoped store that contains thread-independent items.
+    A global scoped store that contains data.
     """
     
     def __init__(self) -> None:
@@ -64,6 +64,15 @@ class ScopedStore(Base, AttrObservable):
 SCOPED_STORE_ATTR_NAME = 'scoped_store__'
 
 
+class StoreLocal:
+    """
+    Plain local object that does not support thread-independent store. Can be faster 
+    than ``threading.local``, but you should make sure that the store won't be used 
+    in thread-independent scenarios.
+    """
+    __slots__ = (SCOPED_STORE_ATTR_NAME,)
+
+
 @RemoveOverload(checklist=[
     'attach__',
     'attach_attr__',
@@ -84,11 +93,15 @@ class CoreStore(
     """
     NOTE: ``CoreStore`` should be strictly subclassed and create a new 
     ``scoped_store_local__`` attribute in each subclass you create to 
-    ensure the consistency and namespace independence.
+    ensure consistency and namespace independence.
+    
+    ``scoped_store_local__`` can be set to a ``threading.local`` object 
+    to make the store thread-independent, or can be set to a ``StoreLocal`` 
+    object (or any other plain object) to be faster under thread-dependent 
+    scenarios (where multi-threading is not used or the multiple threads 
+    share the same store data).
     """
-    # The ``scoped_store_local__`` uses ``threading.local`` to make 
-    # itself thread-independent.
-    scoped_store_local__: threading.local
+    scoped_store_local__: Union[StoreLocal, threading.local]
 
     def current__(self) -> ScopedStore:
         scoped_store: Union[ScopedStore, Missing] = getattr(

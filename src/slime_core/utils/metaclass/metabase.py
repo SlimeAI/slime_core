@@ -10,12 +10,10 @@ from slime_core.utils.typing.native import (
     Tuple
 )
 from slime_core.utils.typing.extension import (
-    MISSING,
-    compare_method
+    MISSING
 )
 from . import (
     ReadonlyAttrMetaclass,
-    InitOnceMetaclass,
     SingletonMetaclass
 )
 
@@ -78,25 +76,6 @@ class ReadonlyAttr(metaclass=ReadonlyAttrMetaclass):
         else:
             from ..exception import APIMisused
             raise APIMisused(f'``{__name}`` in class ``{type(self)}`` is a readonly attribute.')
-
-#
-# InitOnce Base
-#
-
-class InitOnceBase(metaclass=InitOnceMetaclass):
-    """
-    Make sure the ``@InitOnce`` decorated ``__init__`` methods are called only once during the 
-    initialization process.
-    """
-    def __new__(__cls, *args, **kwargs):
-        # NOTE: Use ``__cls`` here to avoid naming conflicts.
-        if compare_method(super().__new__, object.__new__):
-            instance = super().__new__(__cls)
-        else:
-            instance = super().__new__(__cls, *args, **kwargs)
-        # Set ``init_once__`` cache here.
-        instance.init_once__ = {}
-        return instance
 
 #
 # Singleton base class

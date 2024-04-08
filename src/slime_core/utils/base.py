@@ -5,7 +5,6 @@ slime_core util base classes.
 # NOTE: ``BaseDict`` should be placed at the beginning of the file in order 
 # to avoid circular import error (caused by ``slime_core.logging.logger``).
 #
-from abc import ABCMeta
 from .typing.native import (
     TypeVar,
     MutableMapping,
@@ -26,13 +25,6 @@ from .typing.extension import (
 from .abc.base import (
     CoreBaseDict
 )
-from .metaclass.metabase import (
-    InitOnceBase
-)
-from .metaclass import (
-    Metaclasses,
-    InitOnceMetaclass
-)
 from .decorator import (
     InitOnce
 )
@@ -45,10 +37,8 @@ _VT = TypeVar("_VT")
 #
 
 class BaseDict(
-    InitOnceBase,
     CoreBaseDict[_KT, _VT],
-    Generic[_KT, _VT],
-    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+    Generic[_KT, _VT]
 ):
     """
     A dict-like (mutable mapping) object that wraps a real Python ``dict`` (or ``MutableMapping``). 
@@ -173,10 +163,8 @@ _SlimeConstantT = TypeVar("_SlimeConstantT", bound=SlimeConstant)
 #
 
 class BaseList(
-    InitOnceBase,
     CoreBaseList[_T],
-    Generic[_T],
-    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+    Generic[_T]
 ):
     """
     A list-like (mutable sequence) object that wraps a real Python ``list`` (or ``MutableSequence``). 
@@ -273,9 +261,7 @@ _MutableBiListItemT = TypeVar("_MutableBiListItemT", bound="MutableBiListItem")
 
 class BiListItem(
     CoreBiListItem[_BiListT],
-    InitOnceBase,
-    Generic[_BiListT],
-    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+    Generic[_BiListT]
 ):
     """
     Bidirectional list item, which keeps the reference of its parent.
@@ -328,8 +314,7 @@ class BiListItem(
 class MutableBiListItem(
     BiListItem[_BiListT],
     CoreMutableBiListItem[_MutableBiListItemT, _BiListT],
-    Generic[_MutableBiListItemT, _BiListT],
-    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+    Generic[_MutableBiListItemT, _BiListT]
 ):
     """
     Similar to ``BiListItem``, but defines more modification operations.
@@ -543,9 +528,7 @@ class ItemAttrBinding(
 class Base(
     ScopedAttr,
     ItemAttrBinding,
-    InitOnceBase,
-    CoreBase[ScopedAttrAssign, ScopedAttrRestore],
-    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+    CoreBase[ScopedAttrAssign, ScopedAttrRestore]
 ):
     """
     Base class, making its subclasses be able to use '[]' operations(just like python dict).
@@ -557,7 +540,6 @@ class Base(
     def __init__(self) -> None:
         ScopedAttr.__init__(self)
         ItemAttrBinding.__init__(self)
-        InitOnceBase.__init__(self)
 
     def from_kwargs__(self, **kwargs) -> None:
         self.from_dict__(kwargs)
@@ -593,10 +575,8 @@ _ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 
 
 class BaseGenerator(
-    InitOnceBase,
     CoreBaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
-    Generic[_YieldT_co, _SendT_contra, _ReturnT_co],
-    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+    Generic[_YieldT_co, _SendT_contra, _ReturnT_co]
 ):
     """
     Call a generator more safely without rasing ``StopIteration``. When the 
@@ -658,10 +638,8 @@ class BaseGenerator(
 
 class ContextGenerator(
     BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
-    InitOnceBase,
     CoreContextGenerator[_YieldT_co, _SendT_contra, _ReturnT_co, _YieldT_co],
-    Generic[_YieldT_co, _SendT_contra, _ReturnT_co],
-    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+    Generic[_YieldT_co, _SendT_contra, _ReturnT_co]
 ):
     """
     Make the generator a context manager. ``__enter__`` will call ``next`` 
@@ -879,7 +857,7 @@ def CompositeBFS(
 # Attr Proxy
 #
 
-class AttrProxy(InitOnceBase, Generic[_T]):
+class AttrProxy(Generic[_T]):
     """
     Proxy the attribute get of the given attribute list to the proxied object.
     """
@@ -975,11 +953,7 @@ class _AttrObservableDict(BaseDict[str, _AttrObservableInfo]):
         return self.get_observable_id__(__observable) in self
 
 
-class AttrObserver(
-    InitOnceBase,
-    CoreAttrObserver,
-    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
-):
+class AttrObserver(CoreAttrObserver):
     
     @InitOnce
     def __init__(self) -> None:
@@ -1086,16 +1060,17 @@ class _AttrObserverDict(BaseDict[str, List[AttrObserver]]):
                 del self[__name]
 
 
-class AttrObservable(
-    InitOnceBase,
-    CoreAttrObservable,
-    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
-):
+class AttrObservable(CoreAttrObservable):
 
     @InitOnce
     def __init__(self) -> None:
         # attr name to observers
-        self.__attr_observer_dict: _AttrObserverDict = _AttrObserverDict()
+        self.__attr_observer_dict: _AttrObserverDict
+        # NOTE: Use ``super().__setattr__`` here.
+        super().__setattr__(
+            resolve_private_attr_name(AttrObservable, '__attr_observer_dict'),
+            _AttrObserverDict()
+        )
     
     def attach__(
         self,
