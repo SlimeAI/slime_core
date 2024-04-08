@@ -1,4 +1,3 @@
-import os
 import threading
 from abc import ABCMeta
 from .metaclass import (
@@ -8,11 +7,11 @@ from .metaclass import (
 from .metaclass.metabase import Singleton
 from .typing.native import (
     Any,
-    MutableMapping,
     overload,
     Union,
     TYPE_CHECKING,
-    Sequence
+    Sequence,
+    Mapping
 )
 from .typing.extension import (
     is_slime_naming,
@@ -39,6 +38,9 @@ if TYPE_CHECKING:
 #
 
 class ScopedStore(Base, AttrObservable):
+    """
+    A global scoped store that contains thread-independent items.
+    """
     
     def __init__(self) -> None:
         Base.__init__(self)
@@ -58,13 +60,21 @@ class ScopedStore(Base, AttrObservable):
 # Store
 #
 
+# Attribute name used when assigning the ``ScopedStore`` to ``threading.local``.
+SCOPED_STORE_ATTR_NAME = 'scoped_store__'
+
+
 @RemoveOverload(checklist=[
     'attach__',
     'attach_attr__',
     'detach__',
     'detach_attr__',
     'assign__',
-    'restore__'
+    'restore__',
+    'from_kwargs__',
+    'from_dict__',
+    'hasattr__',
+    'pop__'
 ])
 class CoreStore(
     ItemAttrBinding,
@@ -73,26 +83,21 @@ class CoreStore(
 ):
     """
     NOTE: ``CoreStore`` should be strictly subclassed and create a new 
-    ``scoped_store_dict__`` attribute in each subclass you create to 
+    ``scoped_store_local__`` attribute in each subclass you create to 
     ensure the consistency and namespace independence.
     """
-    scoped_store_dict__: MutableMapping[str, ScopedStore]
-    
-    def scope__(self, __key: str) -> ScopedStore:
-        if __key not in self.scoped_store_dict__:
-            self.scoped_store_dict__[__key] = ScopedStore()
-        
-        return self.scoped_store_dict__[__key]
+    # The ``scoped_store_local__`` uses ``threading.local`` to make 
+    # itself thread-independent.
+    scoped_store_local__: threading.local
 
     def current__(self) -> ScopedStore:
-        return self.scope__(self.get_current_key__())
-
-    def destroy__(self, __key: Union[str, Missing] = MISSING):
-        if __key is MISSING:
-            __key = self.get_current_key__()
-        
-        if __key in self.scoped_store_dict__:
-            del self.scoped_store_dict__[__key]
+        scoped_store: Union[ScopedStore, Missing] = getattr(
+            self.scoped_store_local__, SCOPED_STORE_ATTR_NAME, MISSING
+        )
+        if scoped_store is MISSING:
+            scoped_store = ScopedStore()
+            setattr(self.scoped_store_local__, SCOPED_STORE_ATTR_NAME, scoped_store)
+        return scoped_store
 
     def __getattr__(self, __name: str) -> Any:
         return getattr(self.current__(), __name)
@@ -110,16 +115,11 @@ class CoreStore(
     def __delattr__(self, __name: str) -> None:
         delattr(self.current__(), __name)
     
-    @staticmethod
-    def get_current_key__() -> str:
-        pid = os.getpid()
-        tid = threading.get_ident()
-        return f'p{pid}-t{tid}'
-    
     #
     # Overload functions for type hints.
     #
     
+    # Observable APIs.
     @OverloadFunc
     @overload
     def attach__(
@@ -144,9 +144,25 @@ class CoreStore(
     @OverloadFunc
     @overload
     def detach_attr__(self, __observer: "AttrObserver", __name: str) -> None: pass
+    
+    # ScopedAttr APIs.
     @OverloadFunc
     @overload
     def assign__(self, **kwargs) -> "ScopedAttrAssign[ScopedStore]": pass
     @OverloadFunc
     @overload
     def restore__(self, *attrs: str) -> "ScopedAttrRestore[ScopedStore]": pass
+    
+    # Base APIs.
+    @OverloadFunc
+    @overload
+    def from_kwargs__(self, **kwargs) -> None: pass
+    @OverloadFunc
+    @overload
+    def from_dict__(self, __dict: Mapping[str, Any]) -> None: pass
+    @OverloadFunc
+    @overload
+    def hasattr__(self, __name: str) -> bool: pass
+    @OverloadFunc
+    @overload
+    def pop__(self, __name: str, __default: Any = MISSING) -> Any: pass
