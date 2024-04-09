@@ -135,7 +135,8 @@ from .typing.extension import (
     resolve_private_attr_name
 )
 from .decorator import (
-    DecoratorCall
+    DecoratorCall,
+    FuncSetAttr
 )
 from .abc.base import (
     CoreBaseList,
@@ -1169,17 +1170,12 @@ def AttrObserve(
     """
     Set observe settings to the observe func.
     """
-    def set__(item: ObserveFuncType, name: str, value: Any):
-        try:
-            setattr(item, name, value)
-        except Exception:
-            logger.core_logger.warning(
-                f'Set ``{name}`` attribute failed. Observe object: {str(item)}. '
-                'Please make sure it supports attribute set.'
-            )
-    
     def decorator(func: ObserveFuncType) -> ObserveFuncType:
-        set__(func, OBSERVE_INIT, init)
-        set__(func, OBSERVE_NAMESPACE, namespace)
-        return func
+        return FuncSetAttr(
+            func,
+            attr_dict={
+                OBSERVE_INIT: init,
+                OBSERVE_NAMESPACE: namespace
+            }
+        )
     return decorator

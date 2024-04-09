@@ -268,19 +268,17 @@ def is_slime_constant(__obj: Any) -> bool:
 
 FuncOrMethod = Union[FunctionType, MethodType]
 RawFunc = FunctionType
+MAGIC_PATTERN = re.compile('^_{2}[^_](?:.*[^_])?_{2}$')
+SLIME_PATTERN = re.compile('^[^_](?:.*[^_])?_{2}$')
 
 
 def is_function_or_method(__item: Any) -> bool:
     return isinstance(__item, (MethodType, FunctionType))
 
 
-MAGIC_PATTERN = re.compile('^_{2}[^_](?:.*[^_])?_{2}$')
-
 def is_magic_naming(__name: str) -> bool:
     return MAGIC_PATTERN.match(str(__name)) is not None
 
-
-SLIME_PATTERN = re.compile('^[^_](?:.*[^_])?_{2}$')
 
 def is_slime_naming(__name: str) -> bool:
     return SLIME_PATTERN.match(str(__name)) is not None

@@ -91,12 +91,24 @@ class CoreStore(
     metaclass=Metaclasses(ABCMeta, SingletonMetaclass)
 ):
     """
-    NOTE: ``CoreStore`` should be strictly subclassed and create a new 
-    ``scoped_store_local__`` attribute in each subclass you create to 
-    ensure consistency and namespace independence.
+    ``CoreStore`` provides a global singleton helper that manages a set of 
+    ``ScopedStore`` instances.
     
-    ``scoped_store_local__`` can be set to a ``threading.local`` object 
-    to make the store thread-independent, or can be set to a ``StoreLocal`` 
+    Attribute resolution order: If the attribute name to be accessed is a 
+    slime naming, then it will first try to get the attribute from the 
+    ``CoreStore``, and if the attribute does not exist, then it will try to 
+    get the attribute from the ``ScopedStore`` returned by ``current__`` (
+    referred to as 'the current store'). If the attribute name is NOT a 
+    slime naming, then directly get it from the current store. Attribute set 
+    and del operations on ``CoreStore`` will be directly proxied to the 
+    current store, without considering the naming.
+    
+    NOTE: ``CoreStore`` should be strictly subclassed and create a new 
+    ``scoped_store_local__`` attribute in each subclass you create to ensure 
+    consistency and namespace independence.
+    
+    ``scoped_store_local__`` can be set to a ``threading.local`` object to 
+    make the store thread-independent, or can be set to a ``StoreLocal`` 
     object (or any other plain object) to be faster under thread-dependent 
     scenarios (where multi-threading is not used or the multiple threads 
     share the same store data).
@@ -104,6 +116,11 @@ class CoreStore(
     scoped_store_local__: Union[StoreLocal, threading.local]
 
     def current__(self) -> ScopedStore:
+        """
+        Get the current ``ScopedStore``. The returned store will be different if 
+        ``scoped_store_local__`` is set to ``threading.local`` in multi-threading 
+        scenarios.
+        """
         scoped_store: Union[ScopedStore, Missing] = getattr(
             self.scoped_store_local__, SCOPED_STORE_ATTR_NAME, MISSING
         )
@@ -112,20 +129,30 @@ class CoreStore(
             setattr(self.scoped_store_local__, SCOPED_STORE_ATTR_NAME, scoped_store)
         return scoped_store
 
-    def __getattr__(self, __name: str) -> Any:
-        return getattr(self.current__(), __name)
-
     def __getattribute__(self, __name: str) -> Any:
-        # slime naming
-        if is_slime_naming(__name) is True:
-            return super().__getattribute__(__name)
-        # else get from ScopedStore object
+        if is_slime_naming(__name):
+            # If it is slime naming, then first try to 
+            # get the attribute from self.
+            try:
+                return super().__getattribute__(__name)
+            except AttributeError:
+                # ``AttributeError`` is ignored, and continue 
+                # to get the attribute from the current store.
+                pass
+        # NOTE: We do not use ``__getattr__`` to process the 
+        # above ``AttributeError``, because if the current store 
+        # does not have the attribute, the following ``getattr`` 
+        # will be called twice (the first time is here, and the 
+        # second time is in the ``__getattr__``).
+        # Get the attribute from the current store.
         return getattr(self.current__(), __name)
 
     def __setattr__(self, __name: str, __value: Any) -> None:
+        # Directly set the attribute to the current store.
         setattr(self.current__(), __name, __value)
     
     def __delattr__(self, __name: str) -> None:
+        # Directly del the attribute from the current store.
         delattr(self.current__(), __name)
     
     #
