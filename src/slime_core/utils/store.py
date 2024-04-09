@@ -10,7 +10,6 @@ from .metaclass import (
 from .metaclass.metabase import Singleton
 from .typing.native import (
     Any,
-    overload,
     Union,
     TYPE_CHECKING,
     Sequence,
@@ -164,7 +163,6 @@ class CoreStore(
     
     # Observable APIs.
     @OverloadFunc
-    @overload
     def attach__(
         self,
         __observer: "AttrObserver",
@@ -174,10 +172,8 @@ class CoreStore(
     ) -> None:
         pass
     @OverloadFunc
-    @overload
     def attach_attr__(self, __observer: "AttrObserver", __name: str, *, init: bool = True) -> None: pass
     @OverloadFunc
-    @overload
     def detach__(
         __observer: "AttrObserver",
         *,
@@ -185,27 +181,20 @@ class CoreStore(
     ) -> None:
         pass
     @OverloadFunc
-    @overload
     def detach_attr__(self, __observer: "AttrObserver", __name: str) -> None: pass
     
     # ScopedAttr APIs.
     @OverloadFunc
-    @overload
     def assign__(self, **kwargs) -> "ScopedAttrAssign[ScopedStore]": pass
     @OverloadFunc
-    @overload
     def restore__(self, *attrs: str) -> "ScopedAttrRestore[ScopedStore]": pass
     
     # Base APIs.
     @OverloadFunc
-    @overload
     def from_kwargs__(self, **kwargs) -> None: pass
     @OverloadFunc
-    @overload
     def from_dict__(self, __dict: Mapping[str, Any]) -> None: pass
     @OverloadFunc
-    @overload
     def hasattr__(self, __name: str) -> bool: pass
     @OverloadFunc
-    @overload
     def pop__(self, __name: str, __default: Any = MISSING) -> Any: pass

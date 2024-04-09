@@ -256,7 +256,6 @@ class Meta:
         # Specify the args used in ``m_init__``.
         # Note that it only works as a type hint.
         @OverloadFunc
-        @overload
         @classmethod
         def m__(cls: Type[_T], arg1) -> Type[_T]: pass
     ```
@@ -285,6 +284,5 @@ class Meta:
     def m_init__(self, *args, **kwargs): pass
     
     @OverloadFunc
-    @overload
     @classmethod
     def m__(cls: Type[_T], *args, **kwargs) -> Type[_T]: return cls

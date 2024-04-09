@@ -84,8 +84,7 @@ def OverloadFunc(_func: _FuncOrMethodT) -> _FuncOrMethodT:
     given func is overloaded, in case the ``overload_dummy`` check won't work 
     in certain future versions of Python.
     """
-    setattr(_func, OVERLOAD_FUNC, True)
-    return _func
+    return FuncSetAttr(_func, attr_dict={OVERLOAD_FUNC: True})
 
 
 @overload
