@@ -71,11 +71,11 @@ class CoreHookContext(CoreTempContext, ABC):
     @abstractmethod
     def initialize(self) -> None:
         # hooks
-        from slime_core.hook.plugin import CorePluginContainer
+        from slime_core.abc.hook.plugin import CorePluginContainer
         self.plugins: CorePluginContainer
         
-        from slime_core.hook.launch import CoreLaunchHook
+        from slime_core.abc.hook.launch import CoreLaunchHook
         self.launch: Union[CoreLaunchHook, Nothing]
         
-        from slime_core.hook.build import CoreBuildHook
+        from slime_core.abc.hook.build import CoreBuildHook
         self.build: Union[CoreBuildHook, Nothing]

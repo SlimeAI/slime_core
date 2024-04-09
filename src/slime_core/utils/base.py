@@ -17,7 +17,7 @@ from .typing.native import (
     Iterator
 )
 from .typing.extension import (
-    resolve_classname,
+    resolve_instance_classname,
     EmptyFlag,
     is_empty_flag,
     MISSING
@@ -93,7 +93,7 @@ class BaseDict(
         return len(self.__dict)
     
     def __str__(self) -> str:
-        classname = resolve_classname(self)
+        classname = resolve_instance_classname(self)
         _id = str(hex(id(self)))
         _dict = str(self.__dict)
         return f'{classname}<{_id}>({_dict})'
@@ -247,7 +247,7 @@ class BaseList(
         return self.__list.insert(__index, __object)
     
     def __str__(self) -> str:
-        classname = resolve_classname(self)
+        classname = resolve_instance_classname(self)
         _id = str(hex(id(self)))
         _list = str(self.__list)
         return f'{classname}<{_id}>({_list})'
@@ -428,6 +428,7 @@ class ScopedAttrRestore(ContextDecorator, Generic[_T]):
 
     def __exit__(self, *args, **kwargs):
         for attr in self.attrs:
+            # Restore the attributes.
             try:
                 if attr in self.prev_value_dict:
                     # Restore previously existing attributes before the scope.
@@ -438,8 +439,10 @@ class ScopedAttrRestore(ContextDecorator, Generic[_T]):
             except Exception as e:
                 logger.core_logger.error(
                     f'Restoring scoped attribute failed. Object: {str(self.obj)}, '
-                    f'attribute: {attr}. {resolve_classname(e)}: {str(e)}'
+                    f'attribute: {attr}. {resolve_instance_classname(e)}: {str(e)}'
                 )
+        # NOTE: Should clear the ``prev_value_dict`` for reuse.
+        self.prev_value_dict.clear()
 
 
 class ScopedAttrAssign(ScopedAttrRestore[_T], Generic[_T]):
@@ -461,7 +464,7 @@ class ScopedAttrAssign(ScopedAttrRestore[_T], Generic[_T]):
             except Exception as e:
                 logger.core_logger.error(
                     f'Assigning scoped attribute failed. Object: {str(self.obj)}, '
-                    f'attribute: {attr}. {resolve_classname(e)}: {str(e)}'
+                    f'attribute: {attr}. {resolve_instance_classname(e)}: {str(e)}'
                 )
         return ret
 
@@ -561,7 +564,7 @@ class Base(
     
     def __str__(self) -> str:
         from .common import dict_to_key_value_str
-        classname = resolve_classname(self)
+        classname = resolve_instance_classname(self)
         _id = str(hex(id(self)))
         _dict = dict_to_key_value_str(self.__dict__)
         return f'{classname}<{_id}>({_dict})'

@@ -1,11 +1,11 @@
 """
-A convenient module register util that helps you dynamically build modules.
+A convenient registry util that dynamically retrieves items based on keys.
 """
 from .base import BaseDict
 from .decorator import DecoratorCall
 from .typing.native import (
     Union,
-    Sequence,
+    Iterable,
     TypeVar,
     overload,
     Callable,
@@ -26,7 +26,7 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
     
     We name the parameter in the methods ``cls`` (or ``_cls``) because at 
     first the registry is designed for classes, and for compatibility we 
-    have not renamed the parameter.
+    have not renamed the parameter (nor will we in the future).
     """
     
     def __init__(
@@ -102,7 +102,7 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
     @overload
     def register_multi(
         self,
-        keys: Sequence[_KT],
+        keys: Iterable[_KT],
         *,
         _cls: Missing = MISSING,
         strict: Union[bool, Missing] = MISSING
@@ -110,7 +110,7 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
     @overload
     def register_multi(
         self,
-        keys: Sequence[_KT],
+        keys: Iterable[_KT],
         *,
         _cls: _VT,
         strict: Union[bool, Missing] = MISSING
@@ -119,11 +119,14 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
     @DecoratorCall(keyword='_cls')
     def register_multi(
         self,
-        keys: Sequence[_KT],
+        keys: Iterable[_KT],
         *,
         _cls: Union[_VT, Missing] = MISSING,
         strict: Union[bool, Missing] = MISSING
     ) -> _VT:
+        """
+        Register an item with multiple keys.
+        """
         strict = self.parse_strict__(strict)
 
         def decorator(cls: _VT) -> _VT:

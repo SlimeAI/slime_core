@@ -2,7 +2,7 @@
 Distributed Launch Hook
 """
 from abc import ABC, abstractmethod
-from slime_core.utils.launch import CoreLaunchUtil
+from slime_core.utils.abc.launch import CoreLaunchUtil
 from slime_core.utils.typing.native import (
     Generic,
     TypeVar

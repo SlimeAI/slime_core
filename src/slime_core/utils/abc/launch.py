@@ -1,12 +1,15 @@
+"""
+Launch ABCs.
+"""
 from abc import ABC, abstractmethod
-from .typing.native import (
+from slime_core.utils.typing.native import (
     Union,
     Callable,
     TypeVar,
     Sequence,
     Any
 )
-from .typing.extension import (
+from slime_core.utils.typing.extension import (
     NoneOrNothing,
     Pass,
     PASS

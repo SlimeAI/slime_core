@@ -18,34 +18,51 @@ class APIMisused(Exception):
 from .typing.extension import NOTHING
 
 #
-# Base Exception class for all Handler Exceptions and Interrupts
+# Base Exception class.
 #
 
-class HandlerBaseException(Exception): pass
+class HandlerBaseException(Exception):
+    """
+    Base exception class for all exceptions of ``Handler``.
+    """
+    pass
 
 #
-# Handler Interrupt
+# Handler Interrupt exceptions.
 #
 
 class HandlerInterrupt(HandlerBaseException):
+    """
+    ``HandlerInterrupt`` is used to interrupt handler execution.
+    """
 
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
 
 class HandlerBreak(HandlerInterrupt):
+    """
+    Break the ``HandlerContainer`` execution.
+    """
 
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
 
 class HandlerContinue(HandlerInterrupt):
+    """
+    Similar to continue, skip the remaining handlers, and proceed to 
+    the next iteration (if any).
+    """
 
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
 
 class HandlerTerminate(HandlerInterrupt):
+    """
+    Terminate the whole handler execution.
+    """
 
     def __init__(self, msg: str, raise_handler=NOTHING) -> None:
         super().__init__()
@@ -60,6 +77,9 @@ class HandlerTerminate(HandlerInterrupt):
 #
 
 class HandlerException(HandlerBaseException):
+    """
+    Used to record the exception info.
+    """
 
     def __init__(self, exception_handler, exception: Exception) -> None:
         super().__init__()
@@ -71,6 +91,9 @@ class HandlerException(HandlerBaseException):
 
 
 class HandlerWrapperException(HandlerException):
+    """
+    Used to record the exception info raised by a ``HandlerWrapper``.
+    """
     
     def __str__(self) -> str:
         return f'exception_wrapper: {str(self.exception_handler)}'

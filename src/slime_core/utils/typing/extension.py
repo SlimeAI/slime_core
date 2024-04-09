@@ -14,7 +14,8 @@ from .native import (
     overload,
     Iterable,
     Type,
-    Set
+    Set,
+    cast
 )
 
 #
@@ -191,7 +192,7 @@ NOTHING = Nothing()
 #
 
 class _FlagConstant(metaclass=_SingletonMetaclass):
-    def __str__(self) -> str: return resolve_classname(self).upper()
+    def __str__(self) -> str: return resolve_instance_classname(self).upper()
     def __repr__(self) -> str: return f'{str(self)}<{str(hex(id(self)))}>'
 
 
@@ -328,26 +329,40 @@ def compare_method(__func1: FuncOrMethod, __func2: FuncOrMethod) -> bool:
     return unwrap_method(__func1) is unwrap_method(__func2)
 
 
-def resolve_classname(__obj: Any) -> str:
+def resolve_name(__named: Any) -> str:
     """
-    Try to resolve the classname of the given object.
+    Resolve the name of the given object based on the following order:
+    
+    - ``__named.__name__``
+    - ``__named.__qualname__``
+    - ``str(__named)``
+    - ``repr(__named)``
+    
+    NOTE: Empty str will be seen as failure, and the function will continue 
+    to check the next naming item until the end.
+    """
+    # NOTE: Use multiple if-return statements here to improve efficiency.
+    name: Union[str, Missing] = getattr(__named, '__name__', MISSING)
+    if name:
+        return cast(str, name)
+    name: Union[str, Missing] = getattr(__named, '__qualname__', MISSING)
+    if name:
+        return cast(str, name)
+    name = str(__named)
+    if name:
+        return name
+    name = repr(__named)
+    return name
+
+
+def resolve_instance_classname(__obj: Any) -> str:
+    """
+    Try to resolve the classname of the given instance object.
     """
     # NOTE: Use ``type`` rather than ``__obj.__class__``, because the former is more valid, 
     # especially when the ``__getattribute__`` method is overridden by ``__obj`` (e.g., 
     # ``NOTHING.__class__`` will return ``NOTHING`` itself rather than the ``Nothing`` class).
-    cls = type(__obj)
-    # NOTE: Use multiple if-return statements here to improve efficiency.
-    classname = getattr(cls, '__name__', None)
-    if classname:
-        return classname
-    classname = getattr(cls, '__qualname__', None)
-    if classname:
-        return classname
-    classname = str(cls)
-    if classname:
-        return classname
-    classname = repr(cls)
-    return classname
+    return resolve_name(type(__obj))
 
 
 def resolve_private_attr_name(__cls: Type, __name: str) -> str:
@@ -355,6 +370,9 @@ def resolve_private_attr_name(__cls: Type, __name: str) -> str:
     Resolve the private attribute name based on the given class and the original name. Can 
     be robust to the renaming refactor of the class (because the attr name is computed 
     dynamically rather than a fixed str).
+    
+    NOTE: This applies only to classes defined using class definition syntax, and the 
+    ``__name__`` attribute of the class should not be manually changed.
     
     Example:
     
@@ -371,6 +389,8 @@ def resolve_private_attr_name(__cls: Type, __name: str) -> str:
     print(getattr(a_obj, resolve_private_attr_name(A, '__a')))
     ```
     """
+    # NOTE: We do not use ``resolve_name`` to get the classname, because the private name 
+    # is strictly based on the ``__name__`` of the class.
     return f'_{__cls.__name__}{__name}'
 
 

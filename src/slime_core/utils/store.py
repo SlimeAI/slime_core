@@ -1,3 +1,6 @@
+"""
+Global store module that provides global data management.
+"""
 import threading
 from abc import ABCMeta
 from .metaclass import (
