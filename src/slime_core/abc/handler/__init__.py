@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from slime_core.utils.common import Count
+from slime_core.utils.decorator import RemoveOverload, OverloadFunc
 from slime_core.utils.abc.base import (
     CoreMutableBiListItem,
     CoreBiList,
@@ -31,6 +32,20 @@ _HandlerWrapperT = TypeVar("_HandlerWrapperT")
 _HandlerWrapperContainerT = TypeVar("_HandlerWrapperContainerT")
 
 
+@RemoveOverload(checklist=[
+    'get_by_id',
+    'get_by_class',
+    'get_by_filter',
+    'display',
+    'get_display_attr_dict',
+    'get_classname',
+    'get_exec_ranks',
+    'set_exec_ranks',
+    'get_wrappers',
+    'set_wrappers',
+    'get_lifecycle',
+    'set_lifecycle'
+])
 class CoreHandler(
     CoreCompositeStructure[_HandlerT],
     CoreMutableBiListItem[_HandlerT, _HandlerContainerT],
@@ -78,30 +93,39 @@ class CoreHandler(
     # Handler search operations.
     #
     
-    @abstractmethod
+    @OverloadFunc
     def get_by_id(self, __id: str) -> _HandlerT:
         """
         Get the handler by handler id.
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
     
-    @abstractmethod
+    @OverloadFunc
     def get_by_class(
         self,
         __class: Union[Type, Tuple[Type, ...]]
     ) -> List[_HandlerT]:
         """
         Get the handlers that are instances of ``__class``.
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
     
-    @abstractmethod
+    @OverloadFunc
     def get_by_filter(
         self,
         __func: Callable[[_HandlerT], bool]
     ) -> List[_HandlerT]:
         """
         Get the handlers by the given filter function.
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
     
@@ -109,24 +133,23 @@ class CoreHandler(
     # Handler display APIs.
     #
     
-    @abstractmethod
+    @OverloadFunc
     def display(self, *args, **kwargs) -> None:
         """
         Display the handler structure.
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
     
-    @abstractmethod
-    def __str__(self) -> str:
-        """
-        Simple handler str formatter.
-        """
-        return super().__str__()
-    
-    @abstractmethod
+    @OverloadFunc
     def get_display_attr_dict(self) -> Dict[str, Any]:
         """
         Return the names and values of attributes to be displayed.
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
     
@@ -134,10 +157,13 @@ class CoreHandler(
     # Handler attribute operations.
     #
     
-    @abstractmethod
+    @OverloadFunc
     def get_classname(self) -> str:
         """
         Get the class name of the handler (for display).
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
 
@@ -156,46 +182,64 @@ class CoreHandler(
         """
         pass
     
-    @abstractmethod
+    @OverloadFunc
     def get_exec_ranks(self) -> Union[Iterable[int], NoneOrNothing, Pass]:
         """
         Get exec_ranks of the handler.
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
     
-    @abstractmethod
+    @OverloadFunc
     def set_exec_ranks(self, __exec_ranks: Union[Iterable[int], NoneOrNothing, Pass]) -> None:
         """
         Set exec_ranks of the handler.
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
 
-    @abstractmethod
+    @OverloadFunc
     def get_wrappers(self) -> Union[_HandlerWrapperContainerT, Nothing]:
         """
         Get the handler wrappers of the handler (if any).
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
     
-    @abstractmethod
+    @OverloadFunc
     def set_wrappers(self, __wrappers: Union[Iterable[_HandlerWrapperT], EmptyFlag]) -> None:
         """
         Set the handler wrappers. If ``__wrappers`` is ``EmptyFlag``, then set wrappers 
         to ``NOTHING``.
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
     
-    @abstractmethod
+    @OverloadFunc
     def get_lifecycle(self, *args, **kwargs):
         """
         TODO: The lifecycle feature is to be implemented.
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
     
-    @abstractmethod
+    @OverloadFunc
     def set_lifecycle(self, *args, **kwargs):
         """
         TODO: The lifecycle feature is to be implemented.
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
 

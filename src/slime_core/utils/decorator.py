@@ -1,5 +1,6 @@
 import inspect
 from functools import wraps
+from .exception import APIMisused
 from .typing.native import (
     Union,
     Callable,
@@ -9,7 +10,8 @@ from .typing.native import (
     overload_dummy,
     List,
     Dict,
-    Any
+    Any,
+    cast
 )
 from .typing.extension import (
     FuncOrMethod,
@@ -91,19 +93,31 @@ def OverloadFunc(_func: _FuncOrMethodT) -> _FuncOrMethodT:
 def RemoveOverload(
     _cls: Missing = MISSING,
     *,
-    checklist: Union[Missing, List[str]] = MISSING
+    checklist: Union[Missing, List[str]] = MISSING,
+    checklist_strict: bool = True
 ) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
 def RemoveOverload(
     _cls: Type[_T],
     *,
-    checklist: Union[Missing, List[str]] = MISSING
+    checklist: Union[Missing, List[str]] = MISSING,
+    checklist_strict: bool = True
 ) -> Type[_T]: pass
 
 @DecoratorCall(index=0, keyword='_cls')
-def RemoveOverload(_cls=MISSING, *, checklist: Union[Missing, List[str]] = MISSING):
+def RemoveOverload(
+    _cls=MISSING,
+    *,
+    checklist: Union[Missing, List[str]] = MISSING,
+    checklist_strict: bool = True
+):
+    """
+    Remove a function or method in ``_cls`` if it is an overload func. If ``checklist`` 
+    is given, then only functions that are in the ``checklist`` will be checked. If 
+    ``checklist_strict`` is True, then all the functions in the ``checklist`` should 
+    be an overload func, else an ``APIMisused`` exception will be raised.
+    """
     def decorator(cls: Type[_T]) -> Type[_T]:
-        nonlocal checklist
         _dict = cls.__dict__
         
         def filter_func(key: str) -> bool:
@@ -121,10 +135,18 @@ def RemoveOverload(_cls=MISSING, *, checklist: Union[Missing, List[str]] = MISSI
             return inspect.unwrap(static_func) is overload_dummy
         
         if checklist is MISSING:
-            checklist = filter(filter_func, _dict.keys())
+            overloaded = tuple(filter(filter_func, _dict.keys()))
         else:
-            checklist = filter(filter_func, checklist)
-        for attr in checklist:
+            overloaded = tuple(filter(filter_func, cast(List[str], checklist)))
+            if checklist_strict:
+                mismatched_overloaded = set(checklist) - set(overloaded)
+                if mismatched_overloaded:
+                    raise APIMisused(
+                        '``checklist_strict`` is set to True, but not all the functions '
+                        'in the ``checklist`` are overload functions. Mismatched functions: '
+                        f'{mismatched_overloaded}.'
+                    )
+        for attr in overloaded:
             try:
                 delattr(cls, attr)
             except AttributeError as e:

@@ -2,6 +2,7 @@
 Launch ABCs.
 """
 from abc import ABC, abstractmethod
+from slime_core.utils.decorator import RemoveOverload, OverloadFunc
 from slime_core.utils.typing.native import (
     Union,
     Callable,
@@ -83,6 +84,16 @@ class CoreLaunchUtil(ABC):
         pass
 
 
+@RemoveOverload(checklist=[
+    'gather',
+    'gather_object',
+    'all_gather',
+    'all_gather_object',
+    'broadcast',
+    'broadcast_object',
+    'scatter',
+    'scatter_object'
+])
 class CoreDistComm(ABC):
     """
     Distributed communication APIs including gather, all_gather, broadcast, 
@@ -91,31 +102,69 @@ class CoreDistComm(ABC):
     NOTE: The difference between the names ``xxx`` and ``xxx_object`` (e.g., 
     ``gather`` and ``gather_object``) is that ``xxx`` may be used for optimized 
     object transmission (e.g., ``torch.Tensor`` in PyTorch), while ``xxx_object`` 
-    is used for more general usage (e.g., plain Python object transmission). If 
-    there doesn't exist special optimization for some specific objects, you can 
-    simply call ``xxx_object`` and return the result of it in the ``xxx`` method.
+    is used for more general usage (e.g., plain Python object transmission).
     """
 
-    @abstractmethod
-    def gather(self, *args, **kwargs) -> Any: pass
+    @OverloadFunc
+    def gather(self, *args, **kwargs) -> Any:
+        """
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
+        """
+        pass
     
-    @abstractmethod
-    def gather_object(self, *args, **kwargs) -> Any: pass
+    @OverloadFunc
+    def gather_object(self, *args, **kwargs) -> Any:
+        """
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
+        """
+        pass
     
-    @abstractmethod
-    def all_gather(self, *args, **kwargs) -> Any: pass
+    @OverloadFunc
+    def all_gather(self, *args, **kwargs) -> Any:
+        """
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
+        """
+        pass
     
-    @abstractmethod
-    def all_gather_object(self, *args, **kwargs) -> Any: pass
+    @OverloadFunc
+    def all_gather_object(self, *args, **kwargs) -> Any:
+        """
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
+        """
+        pass
     
-    @abstractmethod
-    def broadcast(self, *args, **kwargs) -> Any: pass
+    @OverloadFunc
+    def broadcast(self, *args, **kwargs) -> Any:
+        """
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
+        """
+        pass
     
-    @abstractmethod
-    def broadcast_object(self, *args, **kwargs) -> Any: pass
+    @OverloadFunc
+    def broadcast_object(self, *args, **kwargs) -> Any:
+        """
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
+        """
+        pass
 
-    @abstractmethod
-    def scatter(self, *args, **kwargs) -> Any: pass
+    @OverloadFunc
+    def scatter(self, *args, **kwargs) -> Any:
+        """
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
+        """
+        pass
     
-    @abstractmethod
-    def scatter_object(self, *args, **kwargs) -> Any: pass
+    @OverloadFunc
+    def scatter_object(self, *args, **kwargs) -> Any:
+        """
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
+        """
+        pass
