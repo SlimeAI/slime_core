@@ -22,10 +22,10 @@ class CoreTempContext(CoreBase, ABC):
     """
     
     def __init__(self) -> None:
-        self.initialize()
+        self.initialize__()
     
     @abstractmethod
-    def initialize(self) -> None:
+    def initialize__(self) -> None:
         """
         Initialization of context object.
         """
@@ -69,7 +69,7 @@ class CoreContext(CoreTempContext, ABC, Generic[_CompileT]):
 class CoreHookContext(CoreTempContext, ABC):
 
     @abstractmethod
-    def initialize(self) -> None:
+    def initialize__(self) -> None:
         # hooks
         from slime_core.abc.hook.plugin import CorePluginContainer
         self.plugins: CorePluginContainer
