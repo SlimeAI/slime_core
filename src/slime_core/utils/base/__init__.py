@@ -5,7 +5,7 @@ slime_core util base classes.
 # NOTE: ``BaseDict`` should be placed at the beginning of the file in order 
 # to avoid circular import error (caused by ``slime_core.logging.logger``).
 #
-from .typing.native import (
+from slime_core.utils.typing.native import (
     TypeVar,
     MutableMapping,
     Generic,
@@ -14,18 +14,19 @@ from .typing.native import (
     Iterable,
     Tuple,
     overload,
-    Iterator
+    Iterator,
+    cast
 )
-from .typing.extension import (
+from slime_core.utils.typing.extension import (
     resolve_instance_classname,
     EmptyFlag,
     is_empty_flag,
     MISSING
 )
-from .abc.base import (
+from slime_core.utils.abc.base import (
     CoreBaseDict
 )
-from .decorator import (
+from slime_core.utils.decorator import (
     InitOnce
 )
 
@@ -103,11 +104,11 @@ class BaseDict(
 #
 
 import re
-from contextlib import ContextDecorator, ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager
 from functools import partial
 from types import TracebackType
 import slime_core.logging.logger as logger
-from .typing.native import (
+from slime_core.utils.typing.native import (
     Any,
     List,
     Sequence,
@@ -121,7 +122,7 @@ from .typing.native import (
     ContextManager,
     Mapping
 )
-from .typing.extension import (
+from slime_core.utils.typing.extension import (
     NOTHING,
     Nothing,
     Pass,
@@ -134,17 +135,16 @@ from .typing.extension import (
     is_slime_constant,
     resolve_private_attr_name
 )
-from .decorator import (
+from slime_core.utils.decorator import (
     DecoratorCall,
     FuncSetAttr
 )
-from .abc.base import (
+from slime_core.utils.abc.base import (
     CoreBaseList,
     CoreBiListItem,
     CoreMutableBiListItem,
     CoreBiList,
     CoreCompositeStructure,
-    CoreScopedAttr,
     CoreItemAttrSetBinding,
     CoreItemAttrGetBinding,
     CoreItemAttrDelBinding,
@@ -210,7 +210,7 @@ class BaseList(
             is_slime_constant(__list_like)
         ):
             return __list_like
-        return cls(__list_like)
+        return cls(cast(Union[Iterable[_T], None], __list_like))
 
     def set_list__(self, __list: MutableSequence[_T]) -> None:
         self.__list = __list
@@ -405,171 +405,6 @@ class BiList(
         return super().insert(__index, __item)
 
 #
-# Scoped Attribute.
-#
-
-class ScopedAttrRestore(ContextDecorator, Generic[_T]):
-
-    def __init__(
-        self,
-        obj: _T,
-        attrs: Iterable[str]
-    ) -> None:
-        self.obj = obj
-        self.attrs = list(attrs)
-        self.prev_value_dict: Dict[str, Any] = {}
-
-    def __enter__(self) -> "ScopedAttrRestore[_T]":
-        for attr in self.attrs:
-            # Only cache existing attributes of ``obj``.
-            if hasattr(self.obj, attr):
-                self.prev_value_dict[attr] = getattr(self.obj, attr, NOTHING)
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        for attr in self.attrs:
-            # Restore the attributes.
-            try:
-                if attr in self.prev_value_dict:
-                    # Restore previously existing attributes before the scope.
-                    setattr(self.obj, attr, self.prev_value_dict[attr])
-                elif hasattr(self.obj, attr):
-                    # Remove previously non-existing attributes before the scope.
-                    delattr(self.obj, attr)
-            except Exception as e:
-                logger.core_logger.error(
-                    f'Restoring scoped attribute failed. Object: {str(self.obj)}, '
-                    f'attribute: {attr}. {resolve_instance_classname(e)}: {str(e)}'
-                )
-        # NOTE: Should clear the ``prev_value_dict`` for reuse.
-        self.prev_value_dict.clear()
-
-
-class ScopedAttrAssign(ScopedAttrRestore[_T], Generic[_T]):
-
-    def __init__(
-        self,
-        obj: _T,
-        attr_assign: Dict[str, Any]
-    ) -> None:
-        super().__init__(obj, attr_assign.keys())
-        self.attr_assign = attr_assign
-
-    def __enter__(self) -> "ScopedAttrAssign[_T]":
-        # backup previous values
-        ret = super().__enter__()
-        for attr, value in self.attr_assign.items():
-            try:
-                setattr(self.obj, attr, value)
-            except Exception as e:
-                logger.core_logger.error(
-                    f'Assigning scoped attribute failed. Object: {str(self.obj)}, '
-                    f'attribute: {attr}. {resolve_instance_classname(e)}: {str(e)}'
-                )
-        return ret
-
-
-class ScopedAttr(CoreScopedAttr[ScopedAttrAssign, ScopedAttrRestore]):
-    """
-    Helper class that implements ``ScopedAttrAssign`` and ``ScopedAttrRestore`` 
-    through methods.
-    """
-    
-    def __init__(self) -> None: pass
-    
-    def assign__(self, **attr_assign) -> ScopedAttrAssign:
-        return ScopedAttrAssign(self, attr_assign)
-    
-    def restore__(self, *attrs: str) -> ScopedAttrRestore:
-        return ScopedAttrRestore(self, attrs)
-
-#
-# ItemAttrBinding
-#
-
-class ItemAttrSetBinding(CoreItemAttrSetBinding):
-    """
-    Bind ``__setitem__`` to ``__setattr__``.
-    """
-    
-    def __setitem__(self, __name: str, __value: Any) -> None:
-        return setattr(self, __name, __value)
-
-
-class ItemAttrGetBinding(CoreItemAttrGetBinding):
-    """
-    Bind ``__getitem__`` to ``getattr``.
-    """
-    
-    def __getitem__(self, __name: str) -> Any:
-        return getattr(self, __name)
-
-
-class ItemAttrDelBinding(CoreItemAttrDelBinding):
-    """
-    Bind ``__delitem__`` to ``delattr``.
-    """
-    
-    def __delitem__(self, __name: str) -> None:
-        return delattr(self, __name)
-
-
-class ItemAttrBinding(
-    ItemAttrSetBinding,
-    ItemAttrGetBinding,
-    ItemAttrDelBinding,
-    CoreItemAttrBinding
-):
-    """
-    Bind item operations to attribute operations.
-    """
-    pass
-
-#
-# Base
-#
-
-class Base(
-    ScopedAttr,
-    ItemAttrBinding,
-    CoreBase[ScopedAttrAssign, ScopedAttrRestore]
-):
-    """
-    Base class, making its subclasses be able to use '[]' operations(just like python dict).
-    Return 'Nothing' if the object does not have the property being retrieved, without throwing Errors.
-    What's more, it allows its subclasses assign properties using a dict.
-    """
-
-    @InitOnce
-    def __init__(self) -> None:
-        ScopedAttr.__init__(self)
-        ItemAttrBinding.__init__(self)
-
-    def from_kwargs__(self, **kwargs) -> None:
-        self.from_dict__(kwargs)
-
-    def from_dict__(self, __dict: Mapping[str, Any]) -> None:
-        self.__dict__.update(__dict)
-    
-    def hasattr__(self, __name: str) -> bool:
-        return hasattr(self, __name)
-
-    def pop__(self, __name: str, __default: Any = MISSING) -> Any:
-        if self.hasattr__(__name):
-            value = getattr(self, __name)
-            delattr(self, __name)
-        else:
-            value = __default
-        return value
-    
-    def __str__(self) -> str:
-        from .common import dict_to_key_value_str
-        classname = resolve_instance_classname(self)
-        _id = str(hex(id(self)))
-        _dict = dict_to_key_value_str(self.__dict__)
-        return f'{classname}<{_id}>({_dict})'
-
-#
 # Base Generator
 #
 
@@ -626,7 +461,7 @@ class BaseGenerator(
 
     def call__(self, __caller: Callable[[], _T]) -> Union[_T, Pass]:
         if self.stop and not self.stop_allowed:
-            from .exception import APIMisused
+            from slime_core.utils.exception import APIMisused
             raise APIMisused(
                 '``stop_allowed`` is set to False, and the generator already '
                 'stopped but you still try to call ``next``.'
@@ -740,13 +575,10 @@ def BaseGeneratorQueue(
 # Context Manager Stack
 #
 
-_ContextManagerT = TypeVar("_ContextManagerT", bound=ContextManager)
-
-
 @contextmanager
 def ContextManagerStack(
-    __context_managers: Union[Iterable[_ContextManagerT], EmptyFlag] = MISSING
-) -> Generator[Tuple, Any, Any]:
+    __context_managers: Union[Iterable[ContextManager[_T]], EmptyFlag] = MISSING
+) -> Generator[Tuple[_T, ...], Any, Any]:
     """
     Call context managers in FILO order. Exceptions will be passed through each 
     context manager until they are processed. Compared to the standard ``with`` 
@@ -764,12 +596,12 @@ def ContextManagerStack(
         ...
     ```
     """
-    cm_list: BaseList[_ContextManagerT] = BaseList(__context_managers)
+    cm_list: BaseList[ContextManager[_T]] = BaseList(__context_managers)
     stack = ExitStack()
     # Use ``ExitStack`` to correctly process exceptions.
     with stack:
         # returned values
-        vals = []
+        vals: List[_T] = []
         for cm in cm_list:
             val = stack.enter_context(cm)
             vals.append(val)
@@ -777,6 +609,104 @@ def ContextManagerStack(
             if val is STOP:
                 break
         yield tuple(vals)
+
+#
+# ItemAttrBinding
+#
+
+class ItemAttrSetBinding(CoreItemAttrSetBinding):
+    """
+    Bind ``__setitem__`` to ``__setattr__``.
+    """
+    
+    def __setitem__(self, __name: str, __value: Any) -> None:
+        return setattr(self, __name, __value)
+
+
+class ItemAttrGetBinding(CoreItemAttrGetBinding):
+    """
+    Bind ``__getitem__`` to ``getattr``.
+    """
+    
+    def __getitem__(self, __name: str) -> Any:
+        return getattr(self, __name)
+
+
+class ItemAttrDelBinding(CoreItemAttrDelBinding):
+    """
+    Bind ``__delitem__`` to ``delattr``.
+    """
+    
+    def __delitem__(self, __name: str) -> None:
+        return delattr(self, __name)
+
+
+class ItemAttrBinding(
+    ItemAttrSetBinding,
+    ItemAttrGetBinding,
+    ItemAttrDelBinding,
+    CoreItemAttrBinding
+):
+    """
+    Bind item operations to attribute operations.
+    """
+    pass
+
+
+from .scoped import *
+
+#
+# Base
+#
+
+_ScopedManagerT = TypeVar("_ScopedManagerT")
+
+
+class Base(
+    Scoped[_ScopedManagerT],
+    ScopedAttr,
+    ItemAttrBinding,
+    CoreBase[_ScopedManagerT],
+    Generic[_ScopedManagerT]
+):
+    """
+    ``Base`` class provides abundant object services:
+    
+    - ``Scoped``: Provides scoped lifecycle management.
+    - ``ScopedAttr``: Provides a simple interface for scoped attribute management. It is actually 
+    a convenient wrapper for ``ScopedAttrAssign`` and ``ScopedAttrRestore``.
+    - ``ItemAttrBinding``: Binds item operations to attribute operations.
+    - Other extended APIs (such as ``from_kwargs__``, ``from__dict__``, ``pop__``, etc.).
+    """
+
+    @InitOnce
+    def __init__(self) -> None:
+        ScopedAttr.__init__(self)
+        ItemAttrBinding.__init__(self)
+
+    def from_kwargs__(self, **kwargs) -> None:
+        self.from_dict__(kwargs)
+
+    def from_dict__(self, __dict: Mapping[str, Any]) -> None:
+        self.__dict__.update(__dict)
+    
+    def hasattr__(self, __name: str) -> bool:
+        return hasattr(self, __name)
+
+    def pop__(self, __name: str, __default: Any = MISSING) -> Any:
+        if self.hasattr__(__name):
+            value = getattr(self, __name)
+            delattr(self, __name)
+        else:
+            value = __default
+        return value
+    
+    def __str__(self) -> str:
+        from slime_core.utils.common import dict_to_key_value_str
+        classname = resolve_instance_classname(self)
+        _id = str(hex(id(self)))
+        _dict = dict_to_key_value_str(self.__dict__)
+        return f'{classname}<{_id}>({_dict})'
 
 #
 # Composite Structure
@@ -789,7 +719,7 @@ class CompositeStructure(
     CoreCompositeStructure[_CompositeStructureT],
     Generic[_CompositeStructureT]
 ):
-    def composite_iterable__(self) -> Union[Iterable[_CompositeStructureT], Nothing]: pass
+    pass
 
 
 def CompositeDFT(
@@ -1064,7 +994,7 @@ class _AttrObserverDict(BaseDict[str, List[AttrObserver]]):
                 del self[__name]
 
 
-class AttrObservable(CoreAttrObservable):
+class AttrObservable(CoreAttrObservable[AttrObserver]):
 
     @InitOnce
     def __init__(self) -> None:

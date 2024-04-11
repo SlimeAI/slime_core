@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from slime_core.utils.abc.base import CoreContextGenerator
 from slime_core.utils.typing.native import (
     TypeVar,
     Union,
@@ -30,6 +31,14 @@ class CoreHandlerWrapper(
     def handle_yield(self, ctx: _ContextT, wrapped: Union[_HandlerT, _HandlerWrapperT]) -> Generator:
         """
         Core handler wrapper API for custom operations.
+        """
+        pass
+    
+    @abstractmethod
+    def handle_ctxgen(self, ctx: _ContextT, wrapped: _HandlerT) -> CoreContextGenerator:
+        """
+        A mixin method that wraps the generator returned by ``handle_yield`` into 
+        a ``ContextGenerator``.
         """
         pass
 

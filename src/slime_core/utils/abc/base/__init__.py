@@ -197,29 +197,70 @@ class CoreBiList(CoreBaseList[_BiListItemT], ABC, Generic[_BiListItemT]):
         pass
 
 #
-# Scoped Attr ABC.
+# Generator ABCs.
 #
 
-_ScopedAttrAssignT = TypeVar("_ScopedAttrAssignT")
-_ScopedAttrRestoreT = TypeVar("_ScopedAttrRestoreT")
+_YieldT_co = TypeVar("_YieldT_co", covariant=True)
+_SendT_contra = TypeVar("_SendT_contra", contravariant=True)
+_ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 
 
-class CoreScopedAttr(ABC, Generic[_ScopedAttrAssignT, _ScopedAttrRestoreT]):
+class CoreBaseGenerator(
+    Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
+    ABC,
+    Generic[_YieldT_co, _SendT_contra, _ReturnT_co]
+):
     """
-    ABC of ``ScopedAttr``.
+    ABC of ``BaseGenerator``.
     """
     
     @abstractmethod
-    def assign__(self, **attr_assign) -> _ScopedAttrAssignT:
+    def __call__(self) -> _YieldT_co:
         """
-        Return a ``ScopedAttrAssign`` object that wraps ``self``.
+        Call ``next`` and return the yielded value.
         """
         pass
     
     @abstractmethod
-    def restore__(self, *attrs: str) -> _ScopedAttrRestoreT:
+    def call__(self, __caller: Callable[[], _T]) -> Union[_T, Pass]:
         """
-        Return a ``ScopedAttrRestore`` object that wraps ``self``.
+        A unified controller that controls over the method calls (e.g., 
+        ``send``, ``throw``, etc.) of the generator.
+        """
+        pass
+
+
+_EnterT_co = TypeVar("_EnterT_co", covariant=True)
+
+
+class CoreContextGenerator(
+    CoreBaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
+    ContextManager[_EnterT_co],
+    Generic[_YieldT_co, _SendT_contra, _ReturnT_co, _EnterT_co]
+):
+    """
+    ABC of ``ContextGenerator``.
+    """
+    pass
+
+
+class CoreGeneralYieldContext(ABC, Generic[_EnterT_co]):
+    """
+    Provide a method template for yield context.
+    """
+    
+    @abstractmethod
+    def gen_yield(self, *args, **kwargs) -> Generator[_EnterT_co, Any, Any]:
+        """
+        A generator method used to build a context manager.
+        """
+        pass
+    
+    @abstractmethod
+    def gen_ctxgen(self, *args, **kwargs) -> CoreContextGenerator[_EnterT_co, Any, Any, _EnterT_co]:
+        """
+        A mixin method that wraps the generator returned by ``gen_yield`` into 
+        a ``ContextGenerator``.
         """
         pass
 
@@ -268,15 +309,22 @@ class CoreItemAttrBinding(
     """
     pass
 
+
+from .scoped import *
+
 #
 # Base ABC.
 #
 
+_ScopedManagerT = TypeVar("_ScopedManagerT")
+
+
 class CoreBase(
-    CoreScopedAttr[_ScopedAttrAssignT, _ScopedAttrRestoreT],
+    CoreScoped[_ScopedManagerT],
+    CoreScopedAttr,
     CoreItemAttrBinding,
     ABC,
-    Generic[_ScopedAttrAssignT, _ScopedAttrRestoreT]
+    Generic[_ScopedManagerT]
 ):
     """
     ABC of ``Base``.
@@ -310,53 +358,6 @@ class CoreBase(
         does not exist, return ``__default``.
         """
         pass
-
-#
-# Generator ABCs.
-#
-
-_YieldT_co = TypeVar("_YieldT_co", covariant=True)
-_SendT_contra = TypeVar("_SendT_contra", contravariant=True)
-_ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
-
-
-class CoreBaseGenerator(
-    Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
-    ABC,
-    Generic[_YieldT_co, _SendT_contra, _ReturnT_co]
-):
-    """
-    ABC of ``BaseGenerator``.
-    """
-    
-    @abstractmethod
-    def __call__(self) -> _YieldT_co:
-        """
-        Call ``next`` and return the yielded value.
-        """
-        pass
-    
-    @abstractmethod
-    def call__(self, __caller: Callable[[], _T]) -> Union[_T, Pass]:
-        """
-        A unified controller that controls over the method calls (e.g., 
-        ``send``, ``throw``, etc.) of the generator.
-        """
-        pass
-
-
-_EnterT_co = TypeVar("_EnterT_co", covariant=True)
-
-
-class CoreContextGenerator(
-    CoreBaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
-    ContextManager[_EnterT_co],
-    Generic[_YieldT_co, _SendT_contra, _ReturnT_co, _EnterT_co]
-):
-    """
-    ABC of ``ContextGenerator``.
-    """
-    pass
 
 #
 # CompositeStructure ABC.
@@ -414,10 +415,7 @@ class CoreAttrObserver(ABC):
 _AttrObserverT = TypeVar("_AttrObserverT")
 
 
-class CoreAttrObservable(
-    ABC,
-    Generic[_AttrObserverT]
-):
+class CoreAttrObservable(ABC, Generic[_AttrObserverT]):
     """
     ABC of ``AttrObservable``.
     """

@@ -31,9 +31,10 @@ class FuncParams(Generic[_ArgsT, _KwargsT]):
     """
     Pack multiple function params in a single object.
     """
-    def __init__(self, *args: _ArgsT, **kwargs: _KwargsT) -> None:
-        self.args = args
-        self.kwargs = kwargs
+    def __init__(__self, *args: _ArgsT, **kwargs: _KwargsT) -> None:
+        # NOTE: Use ``__self`` to avoid naming conflicts.
+        __self.args = args
+        __self.kwargs = kwargs
 
 
 class HashCache(ReadonlyAttr):

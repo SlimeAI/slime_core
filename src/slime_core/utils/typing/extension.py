@@ -192,12 +192,14 @@ NOTHING = Nothing()
 #
 
 class _FlagConstant(metaclass=_SingletonMetaclass):
+    __slots__ = ()
     def __str__(self) -> str: return resolve_instance_classname(self).upper()
     def __repr__(self) -> str: return f'{str(self)}<{str(hex(id(self)))}>'
 
 
 # ``Pass`` singleton constant
 class Pass(_FlagConstant):
+    __slots__ = ()
     def __contains__(self, *args, **kwargs) -> Literal[True]:
         """
         NOTE: ``PASS`` is seen to contain anything.
@@ -209,6 +211,7 @@ PASS = Pass()
 
 # ``Missing`` singleton constant
 class Missing(_FlagConstant):
+    __slots__ = ()
     def __bool__(self) -> bool:
         return False
 
@@ -217,6 +220,7 @@ MISSING = Missing()
 
 # ``Stop`` singleton constant
 class Stop(_FlagConstant):
+    __slots__ = ()
     def __bool__(self) -> bool:
         return False
 

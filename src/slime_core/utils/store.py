@@ -13,7 +13,8 @@ from .typing.native import (
     Union,
     TYPE_CHECKING,
     Sequence,
-    Mapping
+    Mapping,
+    Iterable
 )
 from .typing.extension import (
     is_slime_naming,
@@ -31,6 +32,7 @@ from .decorator import RemoveOverload, OverloadFunc
 if TYPE_CHECKING:
     from .base import (
         AttrObserver,
+        ContextGenerator,
         ScopedAttrAssign,
         ScopedAttrRestore
     )
@@ -185,9 +187,9 @@ class CoreStore(
     
     # ScopedAttr APIs.
     @OverloadFunc
-    def assign__(self, **kwargs) -> "ScopedAttrAssign[ScopedStore]": pass
+    def assign__(self, attr_assign: Mapping[str, Any]) -> "ContextGenerator[ScopedAttrAssign, Any, Any]": pass
     @OverloadFunc
-    def restore__(self, *attrs: str) -> "ScopedAttrRestore[ScopedStore]": pass
+    def restore__(self, attrs: Iterable[str]) -> "ContextGenerator[ScopedAttrRestore, Any, Any]": pass
     
     # Base APIs.
     @OverloadFunc

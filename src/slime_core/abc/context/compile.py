@@ -31,13 +31,12 @@ class CompileFuncParams(FuncParams[_ArgsT, _KwargsT], Generic[_ArgsT, _KwargsT])
 class CoreCompile(ABC, Generic[_ContextT]):
     
     @property
-    @abstractmethod
     def ctx(self) -> Union[_ContextT, Nothing]:
         """
-        We additionally set the abstract property ``ctx`` for more convenient 
+        We additionally add the mixin property ``ctx`` for more convenient 
         access of the attribute.
         """
-        pass
+        return self.get_ctx()
     
     @abstractmethod
     def set_ctx(self, ctx: Union[_ContextT, EmptyFlag]) -> None:
@@ -57,7 +56,7 @@ class CoreCompile(ABC, Generic[_ContextT]):
     @abstractmethod
     def del_ctx(self) -> None:
         """
-        Remove the bound context of the Compile object.
+        Remove the bound context from the Compile object.
         """
         pass
     
