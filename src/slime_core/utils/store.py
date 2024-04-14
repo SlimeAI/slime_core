@@ -134,6 +134,13 @@ class CoreStore(
         return scoped_store
 
     def __getattribute__(self, __name: str) -> Any:
+        if __name == 'scoped_store_local__':
+            # ``scoped_store_local__`` should always be accessed in 
+            # ``CoreStore`` rather than in ``ScopedStore``, and the 
+            # ``AttributeError`` should be directly raised if the 
+            # attribute does not exist (mostly because the subclass 
+            # did not manually create it).
+            return super().__getattribute__(__name)
         if is_slime_naming(__name):
             # If it is slime naming, then first try to 
             # get the attribute from self.

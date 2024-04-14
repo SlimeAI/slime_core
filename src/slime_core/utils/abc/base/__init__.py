@@ -26,6 +26,7 @@ from slime_core.utils.typing.extension import (
     EmptyFlag,
     Missing
 )
+from slime_core.utils.decorator import OverloadFunc, RemoveOverload
 
 _T = TypeVar("_T")
 _KT = TypeVar("_KT")
@@ -58,6 +59,9 @@ class CoreBaseDict(MutableMapping[_KT, _VT], ABC, Generic[_KT, _VT]):
 # BaseList ABC
 #
 
+@RemoveOverload(checklist=[
+    'rindex__'
+])
 class CoreBaseList(MutableSequence[_T], ABC, Generic[_T]):
     """
     ABC of ``BaseList``.
@@ -74,6 +78,22 @@ class CoreBaseList(MutableSequence[_T], ABC, Generic[_T]):
     def get_list__(self) -> MutableSequence[_T]:
         """
         Get the list reference.
+        """
+        pass
+    
+    @OverloadFunc
+    def rindex__(
+        self,
+        __value: _T,
+        __start: int = 0,
+        __stop: Union[int, Missing] = MISSING
+    ) -> int:
+        """
+        Reversed index method. Return the last occurrence of ``__value``. Raise 
+        ``ValueError`` if ``__value`` is not present.
+        
+        NOTE: This method is optionally implemented, and the template function will 
+        be removed at runtime.
         """
         pass
 
@@ -106,10 +126,14 @@ class CoreBiListItem(ABC, Generic[_BiListT]):
         pass
     
     @abstractmethod
-    def get_verified_parent__(self) -> Union[_BiListT, Nothing]:
+    def get_verified_parent__(self, contain_check: bool = True) -> Union[_BiListT, Nothing]:
         """
         Check parent validity and return the parent. If any inconsistencies occur, 
         try to fix them and return ``NOTHING``.
+        
+        ``contain_check``: Whether to perform a containment check. This can improve 
+        performance if subsequent operations on the parent also check containment ( 
+        e.g., parent.index, parent.remove, etc.).
         """
         pass
     
@@ -415,6 +439,7 @@ class CoreAttrObserver(ABC):
 _AttrObserverT = TypeVar("_AttrObserverT")
 
 
+@RemoveOverload(checklist=['__setattr__'])
 class CoreAttrObservable(ABC, Generic[_AttrObserverT]):
     """
     ABC of ``AttrObservable``.
@@ -472,10 +497,12 @@ class CoreAttrObservable(ABC, Generic[_AttrObserverT]):
         """
         pass
     
-    @abstractmethod
+    @OverloadFunc
     def __setattr__(self, __name: str, __value: Any) -> None:
         """
-        Set attribute and notify changes.
+        Set attribute and notify changes. NOTE: This method should be implemented by 
+        subclasses, but the template function will still be removed for performance 
+        reasons (otherwise ``super().__setattr__`` should be called here to pass the 
+        attribute operation to ``object``, which will be slower).
         """
-        # NOTE: Pass ``__setattr__`` along the mro.
-        super().__setattr__(__name, __value)
+        pass

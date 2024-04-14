@@ -218,6 +218,33 @@ class BaseList(
     def get_list__(self) -> MutableSequence[_T]:
         return self.__list
     
+    def rindex__(
+        self,
+        __value: _T,
+        __start: int = 0,
+        __stop: Union[int, Missing] = MISSING
+    ) -> int:
+        if __start < 0:
+            __start = max(len(self) + __start, 0)
+        
+        if __stop is MISSING:
+            __stop = len(self) - 1
+        else:
+            __stop = cast(int, __stop)
+            if __stop < 0:
+                __stop += (len(self) - 1)
+
+        i = __stop
+        while i >= __start:
+            try:
+                v = self[i]
+            except IndexError:
+                break
+            if v is __value or v == __value:
+                return i
+            i -= 1
+        raise ValueError
+    
     @overload
     def __getitem__(self, __i: SupportsIndex) -> _T: pass
     @overload
@@ -253,11 +280,12 @@ class BaseList(
         return f'{classname}<{_id}>({_list})'
 
 #
-# Bidirectional List
+# Bidirectional List.
 #
 
-_BiListT = TypeVar("_BiListT", bound="BiList")
-_MutableBiListItemT = TypeVar("_MutableBiListItemT", bound="MutableBiListItem")
+_BiListT = TypeVar("_BiListT", bound=CoreBiList)
+_BiListItemT = TypeVar("_BiListItemT", bound=CoreBiListItem)
+_MutableBiListItemT = TypeVar("_MutableBiListItemT", bound=CoreMutableBiListItem)
 
 
 class BiListItem(
@@ -291,22 +319,29 @@ class BiListItem(
     def get_parent__(self) -> Union[_BiListT, Nothing]:
         return getattr(self, self.__parent_attr_name, NOTHING)
     
-    def get_verified_parent__(self) -> Union[_BiListT, Nothing]:
+    def get_verified_parent__(self, contain_check: bool = True) -> Union[_BiListT, Nothing]:
         parent = self.get_parent__()
-        if parent is NOTHING:
+        if is_empty_flag(parent):
             # root node
             logger.core_logger.warning(
                 f'BiListItem ``{str(self)}`` does not have a parent.'
             )
             return NOTHING
-        if self not in parent:
-            # unmatched parent
-            logger.core_logger.warning(
-                f'BiListItem ``{str(self)}`` is not contained in its specified parent.'
-            )
-            self.del_parent__()
+        if contain_check and self not in parent:
+            self.process_unmatched_parent__()
             return NOTHING
         return parent
+    
+    def process_unmatched_parent__(self) -> None:
+        """
+        Output warnings and delete the ``__parent`` reference if the parent is unmatched. 
+        NOTE: This method does not perform any actual checking, and it should not be called 
+        externally in most cases, otherwise inconsistency may occur.
+        """
+        logger.core_logger.warning(
+            f'BiListItem ``{str(self)}`` is not contained in its specified parent.'
+        )
+        self.del_parent__()
     
     def del_parent__(self):
         self.__parent = NOTHING
@@ -321,26 +356,38 @@ class MutableBiListItem(
     Similar to ``BiListItem``, but defines more modification operations.
     """
     def replace_self__(self, __item: _MutableBiListItemT) -> None:
-        parent = self.get_verified_parent__()
-        index = parent.index(self)
-        parent[index] = __item
+        parent = self.get_verified_parent__(contain_check=False)
+        try:
+            index = parent.index(self)
+        except ValueError:
+            self.process_unmatched_parent__()
+        else:
+            parent[index] = __item
     
     def insert_before_self__(self, __item: _MutableBiListItemT) -> None:
-        parent = self.get_verified_parent__()
-        index = parent.index(self)
-        parent.insert(index, __item)
+        parent = self.get_verified_parent__(contain_check=False)
+        try:
+            index = parent.index(self)
+        except ValueError:
+            self.process_unmatched_parent__()
+        else:
+            parent.insert(index, __item)
     
     def insert_after_self__(self, __item: _MutableBiListItemT) -> None:
-        parent = self.get_verified_parent__()
-        index = parent.index(self)
-        parent.insert(index + 1, __item)
+        parent = self.get_verified_parent__(contain_check=False)
+        try:
+            index = parent.index(self)
+        except ValueError:
+            self.process_unmatched_parent__()
+        else:
+            parent.insert(index + 1, __item)
     
     def remove_self__(self) -> None:
-        parent = self.get_verified_parent__()
-        parent.remove(self)
-
-
-_BiListItemT = TypeVar("_BiListItemT", bound=BiListItem)
+        parent = self.get_verified_parent__(contain_check=False)
+        try:
+            parent.remove(self)
+        except ValueError:
+            self.process_unmatched_parent__()
 
 
 class BiList(
@@ -405,7 +452,7 @@ class BiList(
         return super().insert(__index, __item)
 
 #
-# Base Generator
+# BaseGenerator.
 #
 
 _YieldT_co = TypeVar("_YieldT_co", covariant=True)
@@ -474,6 +521,34 @@ class BaseGenerator(
         except StopIteration:
             self.stop = True
 
+
+_BaseGeneratorT = TypeVar("_BaseGeneratorT", bound=BaseGenerator)
+
+
+@contextmanager
+def BaseGeneratorQueue(
+    __base_generators: Union[Iterable[_BaseGeneratorT], EmptyFlag] = MISSING
+) -> Generator[Tuple, Any, Any]:
+    """
+    Sequentially call the generators on ``__enter__`` and ``__exit__``. Tuple of 
+    yielded values from the generators will be yielded.
+    
+    NOTE: ``BaseGeneratorQueue`` simply calls ``next`` and no ``send`` values can 
+    be specified.
+    
+    NOTE: Exceptions will NOT be processed in ``BaseGeneratorQueue``.
+    """
+    gen_list: BaseList[_BaseGeneratorT] = BaseList(__base_generators)
+    # call next and yield a tuple of yielded values
+    vals: Tuple = (gen() for gen in gen_list)
+    yield vals
+    # call next
+    for gen in gen_list:
+        gen()
+
+#
+# ContextGenerator.
+#
 
 class ContextGenerator(
     BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
@@ -547,29 +622,18 @@ class ContextGenerator(
             raise exception[1]
 
 
-_BaseGeneratorT = TypeVar("_BaseGeneratorT", bound=BaseGenerator)
+def _empty_yield(yield_value: Any = NOTHING) -> Generator[Any, Any, None]:
+    """
+    An empty generator function used to create empty context generators.
+    """
+    yield yield_value
 
 
-@contextmanager
-def BaseGeneratorQueue(
-    __base_generators: Union[Iterable[_BaseGeneratorT], EmptyFlag] = MISSING
-) -> Generator[Tuple, Any, Any]:
+def EmptyContextGenerator(yield_value: Any = NOTHING) -> ContextGenerator[Any, Any, None]:
     """
-    Sequentially call the generators on ``__enter__`` and ``__exit__``. Tuple of 
-    yielded values from the generators will be yielded.
-    
-    NOTE: ``BaseGeneratorQueue`` simply calls ``next`` and no ``send`` values can 
-    be specified.
-    
-    NOTE: Exceptions will NOT be processed in ``BaseGeneratorQueue``.
+    Create an empty context generator that does nothing.
     """
-    gen_list: BaseList[_BaseGeneratorT] = BaseList(__base_generators)
-    # call next and yield a tuple of yielded values
-    vals: Tuple = (gen() for gen in gen_list)
-    yield vals
-    # call next
-    for gen in gen_list:
-        gen()
+    return ContextGenerator(_empty_yield(yield_value=yield_value), stop_allowed=True)
 
 #
 # Context Manager Stack
@@ -597,9 +661,8 @@ def ContextManagerStack(
     ```
     """
     cm_list: BaseList[ContextManager[_T]] = BaseList(__context_managers)
-    stack = ExitStack()
     # Use ``ExitStack`` to correctly process exceptions.
-    with stack:
+    with ExitStack() as stack:
         # returned values
         vals: List[_T] = []
         for cm in cm_list:
@@ -659,16 +722,7 @@ from .scoped import *
 # Base
 #
 
-_ScopedManagerT = TypeVar("_ScopedManagerT")
-
-
-class Base(
-    Scoped[_ScopedManagerT],
-    ScopedAttr,
-    ItemAttrBinding,
-    CoreBase[_ScopedManagerT],
-    Generic[_ScopedManagerT]
-):
+class Base(Scoped, ScopedAttr, ItemAttrBinding, CoreBase[CoreScopedManager]):
     """
     ``Base`` class provides abundant object services:
     
@@ -681,6 +735,7 @@ class Base(
 
     @InitOnce
     def __init__(self) -> None:
+        Scoped.__init__(self)
         ScopedAttr.__init__(self)
         ItemAttrBinding.__init__(self)
 
@@ -805,20 +860,22 @@ class AttrProxy(Generic[_T]):
         super().__init__()
         self.__obj = __obj
         self.__attrs = __attrs
-        self.__escape_proxy_names = (
-            resolve_private_attr_name(AttrProxy, '__obj'),
-            resolve_private_attr_name(AttrProxy, '__attrs')
-        )
     
     def __getattribute__(self, __name: str) -> Any:
-        if __name in super().__getattribute__(
-            resolve_private_attr_name(AttrProxy, '__escape_proxy_names')
-        ):
+        if __name in _ATTR_PROXY_ESCAPED_GETATTRS:
             return super().__getattribute__(__name)
         # attr proxy
         if __name in self.__attrs:
             return getattr(self.__obj, __name)
         return super().__getattribute__(__name)
+
+
+# These attributes are escaped from ``__getattribute__`` to avoid circular 
+# or infinite recursion problems.
+_ATTR_PROXY_ESCAPED_GETATTRS = frozenset([
+    resolve_private_attr_name(AttrProxy, '__obj'),
+    resolve_private_attr_name(AttrProxy, '__attrs')
+])
 
 #
 # Attr Observer
@@ -995,13 +1052,18 @@ class _AttrObserverDict(BaseDict[str, List[AttrObserver]]):
 
 
 class AttrObservable(CoreAttrObservable[AttrObserver]):
+    """
+    NOTE: The ``__init__`` method of ``AttrObservable`` should always be called 
+    first before other attributes can be set.
+    """
 
     @InitOnce
     def __init__(self) -> None:
         # attr name to observers
         self.__attr_observer_dict: _AttrObserverDict
-        # NOTE: Use ``super().__setattr__`` here.
-        super().__setattr__(
+        # Use ``object.__setattr__`` to escape from any custom attribute operations.
+        object.__setattr__(
+            self,
             resolve_private_attr_name(AttrObservable, '__attr_observer_dict'),
             _AttrObserverDict()
         )
@@ -1064,7 +1126,10 @@ class AttrObservable(CoreAttrObservable[AttrObserver]):
         return func(__new_value, __old_value, self)
     
     def __setattr__(self, __name: str, __value: Any) -> None:
-        if __name not in self.__attr_observer_dict:
+        if (
+            __name in _ATTR_OBSERVABLE_ESCAPED_SETATTRS or 
+            __name not in self.__attr_observer_dict
+        ):
             return super().__setattr__(__name, __value)
         else:
             old_value = getattr(self, __name, MISSING)
@@ -1076,6 +1141,13 @@ class AttrObservable(CoreAttrObservable[AttrObserver]):
     
     def get_attr_observer_dict__(self) -> _AttrObserverDict:
         return self.__attr_observer_dict
+
+
+# These attributes are escaped from ``__setattr__`` to avoid circular or infinite 
+# recursion problems.
+_ATTR_OBSERVABLE_ESCAPED_SETATTRS = frozenset([
+    resolve_private_attr_name(AttrObservable, '__attr_observer_dict')
+])
 
 
 @overload

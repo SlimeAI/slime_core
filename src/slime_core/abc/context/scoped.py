@@ -10,7 +10,7 @@ from slime_core.utils.typing.native import (
 if TYPE_CHECKING:
     from . import CoreTempContext
 
-_ScopedT = TypeVar("_ScopedT")
+_ScopedT = TypeVar("_ScopedT", bound="CoreTempContext")
 
 
 class CoreContextScopedManager(ScopedManager[_ScopedT, None]):

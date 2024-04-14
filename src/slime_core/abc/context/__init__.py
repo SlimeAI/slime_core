@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from slime_core.utils.abc.base import (
     CoreBase
 )
+from slime_core.utils.abc.base.scoped import (
+    CoreScopedManager
+)
 from slime_core.utils.base import ContextGenerator
 from slime_core.utils.typing.native import (
     Union,
@@ -15,10 +18,9 @@ from slime_core.utils.typing.extension import (
 from .scoped import ContextScopedInit
 
 _CompileT = TypeVar("_CompileT")
-_ScopedManagerT = TypeVar("_ScopedManagerT")
 
 
-class CoreTempContext(CoreBase[_ScopedManagerT], ABC, Generic[_ScopedManagerT]):
+class CoreTempContext(CoreBase[CoreScopedManager], ABC):
     """
     NOTE: ``Temp`` in the name does NOT mean the context itself is temporal and may 
     be destroyed, but means some attributes in the context can be re-initialized by 

@@ -39,7 +39,7 @@ if sys.version_info >= (3, 9):
         dict as Dict,
         list as List,
         set as Set,
-        frozenset as Frozenset,
+        frozenset as FrozenSet,
         tuple as Tuple,
         type as Type,
         # for compatibility for Python 2.x

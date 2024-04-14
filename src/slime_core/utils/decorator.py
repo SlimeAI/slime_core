@@ -8,10 +8,11 @@ from .typing.native import (
     Type,
     overload,
     overload_dummy,
-    List,
     Dict,
     Any,
-    cast
+    cast,
+    Iterable,
+    Mapping
 )
 from .typing.extension import (
     FuncOrMethod,
@@ -93,14 +94,14 @@ def OverloadFunc(_func: _FuncOrMethodT) -> _FuncOrMethodT:
 def RemoveOverload(
     _cls: Missing = MISSING,
     *,
-    checklist: Union[Missing, List[str]] = MISSING,
+    checklist: Union[Missing, Iterable[str]] = MISSING,
     checklist_strict: bool = True
 ) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
 def RemoveOverload(
     _cls: Type[_T],
     *,
-    checklist: Union[Missing, List[str]] = MISSING,
+    checklist: Union[Missing, Iterable[str]] = MISSING,
     checklist_strict: bool = True
 ) -> Type[_T]: pass
 
@@ -108,7 +109,7 @@ def RemoveOverload(
 def RemoveOverload(
     _cls=MISSING,
     *,
-    checklist: Union[Missing, List[str]] = MISSING,
+    checklist: Union[Missing, Iterable[str]] = MISSING,
     checklist_strict: bool = True
 ):
     """
@@ -118,6 +119,7 @@ def RemoveOverload(
     be an overload func, else an ``APIMisused`` exception will be raised.
     """
     def decorator(cls: Type[_T]) -> Type[_T]:
+        nonlocal checklist
         _dict = cls.__dict__
         
         def filter_func(key: str) -> bool:
@@ -137,7 +139,9 @@ def RemoveOverload(
         if checklist is MISSING:
             overloaded = tuple(filter(filter_func, _dict.keys()))
         else:
-            overloaded = tuple(filter(filter_func, cast(List[str], checklist)))
+            # NOTE: Avoid one-time iterables.
+            checklist = tuple(checklist)
+            overloaded = tuple(filter(filter_func, cast(Iterable[str], checklist)))
             if checklist_strict:
                 mismatched_overloaded = set(checklist) - set(overloaded)
                 if mismatched_overloaded:
@@ -164,17 +168,17 @@ def RemoveOverload(
 def FuncSetAttr(
     _func: Missing = MISSING,
     *,
-    attr_dict: Dict[str, Any]
+    attr_dict: Mapping[str, Any]
 ) -> Callable[[_FuncOrMethodT], _FuncOrMethodT]: pass
 @overload
 def FuncSetAttr(
     _func: _FuncOrMethodT,
     *,
-    attr_dict: Dict[str, Any]
+    attr_dict: Mapping[str, Any]
 ) -> _FuncOrMethodT: pass
 
 @DecoratorCall(index=0, keyword='_func')
-def FuncSetAttr(_func=MISSING, *, attr_dict: Dict[str, Any]):
+def FuncSetAttr(_func=MISSING, *, attr_dict: Mapping[str, Any]):
     """
     Set attributes to the function in a decorator way.
     """
@@ -193,6 +197,7 @@ def FuncSetAttr(_func=MISSING, *, attr_dict: Dict[str, Any]):
 #
 
 INIT_ONCE_ATTR_NAME = 'init_once__'
+INIT_ONCE_FUNC_ID_ATTR_NAME = 'init_once_func_id__'
 
 
 @overload
@@ -256,6 +261,8 @@ def InitOnce(
     """
     def decorator(func: _FuncOrMethodT) -> _FuncOrMethodT:
         func_id = str(id(func))
+        # Keep the ``func_id`` value in ``func``.
+        FuncSetAttr(func, attr_dict={INIT_ONCE_FUNC_ID_ATTR_NAME: func_id})
         
         @wraps(func)
         def wrapper(self, *args, **kwargs) -> None:
