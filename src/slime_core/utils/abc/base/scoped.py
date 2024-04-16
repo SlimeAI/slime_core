@@ -21,7 +21,8 @@ from slime_core.utils.typing.extension import (
     MISSING,
     Stop
 )
-from . import CoreContextGenerator, CoreBaseList
+from . import CoreBaseList
+from .execution import CoreContextGenerator
 
 _EnterT_co = TypeVar("_EnterT_co", covariant=True)
 _ScopedT = TypeVar("_ScopedT")
@@ -53,7 +54,11 @@ class CoreScopedManager(ABC, Generic[_ScopedT, _EnterT_co]):
         pass
 
 
-class CoreScopedManagerContainer(CoreBaseList[_ScopedManagerT], ABC, Generic[_ScopedManagerT]):
+class CoreScopedManagerContainer(
+    CoreBaseList[_ScopedManagerT],
+    ABC,
+    Generic[_ScopedManagerT, _ScopedT]
+):
     """
     ABC of ``ScopedManagerContainer``.
     """
@@ -71,28 +76,45 @@ class CoreScopedGuard(CoreScopedManager[_ScopedT, _EnterT_co], ABC, Generic[_Sco
     guarded_delattrs__: Union[EmptyFlag, Container[str]] = MISSING
     
     @abstractmethod
-    def setattr_guard(self, __name: str, __value: Any) -> Union[Stop, None]:
+    def setattr_guard_yield(
+        self,
+        __scoped: _ScopedT,
+        __name: str,
+        __value: Any
+    ) -> Generator[Union[Stop, None], Any, Any]:
         """
         Guard on attribute set.
         """
         pass
     
     @abstractmethod
-    def getattr_guard(self, __name: str) -> Union[Stop, None]:
+    def getattr_guard_yield(
+        self,
+        __scoped: _ScopedT,
+        __name: str
+    ) -> Generator[Union[Stop, None], Any, Any]:
         """
         Guard on attribute get.
         """
         pass
     
     @abstractmethod
-    def delattr_guard(self, __name: str) -> Union[Stop, None]:
+    def delattr_guard_yield(
+        self,
+        __scoped: _ScopedT,
+        __name: str
+    ) -> Generator[Union[Stop, None], Any, Any]:
         """
         Guard on attribute delete.
         """
         pass
 
 
-class CoreScopedGuardContainer(CoreBaseList[_ScopedGuardT], ABC, Generic[_ScopedGuardT]):
+class CoreScopedGuardContainer(
+    CoreBaseList[_ScopedGuardT],
+    ABC,
+    Generic[_ScopedGuardT, _ScopedT]
+):
     """
     ABC of ``ScopedGuardContainer``.
     """
@@ -100,6 +122,7 @@ class CoreScopedGuardContainer(CoreBaseList[_ScopedGuardT], ABC, Generic[_Scoped
     @abstractmethod
     def setattr_guard(
         self,
+        __scoped: _ScopedT,
         __setattr_func: Callable[[str, Any], None],
         __name: str,
         __value: Any
@@ -112,6 +135,7 @@ class CoreScopedGuardContainer(CoreBaseList[_ScopedGuardT], ABC, Generic[_Scoped
     @abstractmethod
     def getattr_guard(
         self,
+        __scoped: _ScopedT,
         __getattr_func: Callable[[str], Any],
         __name: str
     ) -> Any:
@@ -123,6 +147,7 @@ class CoreScopedGuardContainer(CoreBaseList[_ScopedGuardT], ABC, Generic[_Scoped
     @abstractmethod
     def delattr_guard(
         self,
+        __scoped: _ScopedT,
         __delattr_func: Callable[[str], None],
         __name: str
     ) -> None:
@@ -142,8 +167,8 @@ class CoreScoped(ABC, Generic[_ScopedManagerT]):
         'is_scoped_guard_enabled__', 'scoped__'
     ])
     # NOTE: These two attributes should be created by subclasses.
-    scoped_managers__: CoreScopedManagerContainer[CoreScopedManager]
-    scoped_guards__: CoreScopedGuardContainer[CoreScopedGuard]
+    scoped_managers__: CoreScopedManagerContainer[CoreScopedManager["CoreScoped", Any], "CoreScoped"]
+    scoped_guards__: CoreScopedGuardContainer[CoreScopedGuard["CoreScoped", Any], "CoreScoped"]
     
     @abstractmethod
     def scoped__(

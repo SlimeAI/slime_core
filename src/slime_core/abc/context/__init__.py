@@ -5,7 +5,7 @@ from slime_core.utils.abc.base import (
 from slime_core.utils.abc.base.scoped import (
     CoreScopedManager
 )
-from slime_core.utils.base import ContextGenerator
+from slime_core.utils.base.execution import ContextGenerator
 from slime_core.utils.typing.native import (
     Union,
     Generic,

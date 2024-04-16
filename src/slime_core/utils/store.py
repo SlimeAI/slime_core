@@ -14,13 +14,16 @@ from .typing.native import (
     TYPE_CHECKING,
     Sequence,
     Mapping,
-    Iterable
+    Iterable,
+    ContextManager,
+    Tuple
 )
 from .typing.extension import (
     is_slime_naming,
     Missing,
     MISSING,
-    NoneOrNothing
+    NoneOrNothing,
+    EmptyFlag
 )
 from .base import (
     Base,
@@ -30,12 +33,13 @@ from .base import (
 from .decorator import RemoveOverload, OverloadFunc
 # type hint only
 if TYPE_CHECKING:
-    from .base import (
-        AttrObserver,
-        ContextGenerator,
+    from .base import AttrObserver
+    from .base.scoped import (
         ScopedAttrAssign,
         ScopedAttrRestore
     )
+    from .base.execution import ContextGenerator
+    from .abc.base.scoped import CoreScopedManager
 
 #
 # Scoped Store
@@ -78,10 +82,13 @@ class StoreLocal:
 
 
 @RemoveOverload(checklist=[
+    'init__',
     'attach__',
     'attach_attr__',
     'detach__',
     'detach_attr__',
+    'scoped__',
+    'is_scoped_guard_enabled__',
     'assign__',
     'restore__',
     'from_kwargs__',
@@ -170,6 +177,10 @@ class CoreStore(
     # Overload functions for type hints.
     #
     
+    # ScopedStore APIs.
+    @OverloadFunc
+    def init__(self, __name: str, __value: Any): pass
+    
     # Observable APIs.
     @OverloadFunc
     def attach__(
@@ -191,6 +202,15 @@ class CoreStore(
         pass
     @OverloadFunc
     def detach_attr__(self, __observer: "AttrObserver", __name: str) -> None: pass
+    
+    # Scoped APIs.
+    @OverloadFunc
+    def scoped__(
+        self,
+        __scoped_managers: Union[Iterable["CoreScopedManager"], EmptyFlag] = MISSING
+    ) -> ContextManager[Tuple]: pass
+    @OverloadFunc
+    def is_scoped_guard_enabled__(self) -> bool: pass
     
     # ScopedAttr APIs.
     @OverloadFunc

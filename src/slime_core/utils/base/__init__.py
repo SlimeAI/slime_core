@@ -37,10 +37,7 @@ _VT = TypeVar("_VT")
 # Base Dict
 #
 
-class BaseDict(
-    CoreBaseDict[_KT, _VT],
-    Generic[_KT, _VT]
-):
+class BaseDict(CoreBaseDict[_KT, _VT], Generic[_KT, _VT]):
     """
     A dict-like (mutable mapping) object that wraps a real Python ``dict`` (or ``MutableMapping``). 
     Compared to directly inheriting from ``dict``, ``BaseDict`` implements ``set_dict__`` method, 
@@ -104,7 +101,6 @@ class BaseDict(
 #
 
 import re
-from contextlib import ExitStack, contextmanager
 from functools import partial
 from types import TracebackType
 import slime_core.logging.logger as logger
@@ -119,7 +115,6 @@ from slime_core.utils.typing.native import (
     Generator,
     Callable,
     Set,
-    ContextManager,
     Mapping
 )
 from slime_core.utils.typing.extension import (
@@ -130,7 +125,6 @@ from slime_core.utils.typing.extension import (
     is_none_or_nothing,
     Missing,
     unwrap_method,
-    STOP,
     SlimeConstant,
     is_slime_constant,
     resolve_private_attr_name
@@ -151,7 +145,6 @@ from slime_core.utils.abc.base import (
     CoreItemAttrBinding,
     CoreBase,
     CoreBaseGenerator,
-    CoreContextGenerator,
     CoreAttrObserver,
     CoreAttrObservable
 )
@@ -163,10 +156,7 @@ _SlimeConstantT = TypeVar("_SlimeConstantT", bound=SlimeConstant)
 # Base List
 #
 
-class BaseList(
-    CoreBaseList[_T],
-    Generic[_T]
-):
+class BaseList(CoreBaseList[_T], Generic[_T]):
     """
     A list-like (mutable sequence) object that wraps a real Python ``list`` (or ``MutableSequence``). 
     Compared to directly inheriting from ``list``, ``BaseList`` implements ``set_list__`` method, 
@@ -288,10 +278,7 @@ _BiListItemT = TypeVar("_BiListItemT", bound=CoreBiListItem)
 _MutableBiListItemT = TypeVar("_MutableBiListItemT", bound=CoreMutableBiListItem)
 
 
-class BiListItem(
-    CoreBiListItem[_BiListT],
-    Generic[_BiListT]
-):
+class BiListItem(CoreBiListItem[_BiListT], Generic[_BiListT]):
     """
     Bidirectional list item, which keeps the reference of its parent.
     
@@ -390,11 +377,7 @@ class MutableBiListItem(
             self.process_unmatched_parent__()
 
 
-class BiList(
-    BaseList[_BiListItemT],
-    CoreBiList[_BiListItemT],
-    Generic[_BiListItemT]
-):
+class BiList(BaseList[_BiListItemT], CoreBiList[_BiListItemT], Generic[_BiListItemT]):
     """
     The ``BiList`` container that contains ``BiListItem``.
     """
@@ -522,156 +505,7 @@ class BaseGenerator(
             self.stop = True
 
 
-_BaseGeneratorT = TypeVar("_BaseGeneratorT", bound=BaseGenerator)
-
-
-@contextmanager
-def BaseGeneratorQueue(
-    __base_generators: Union[Iterable[_BaseGeneratorT], EmptyFlag] = MISSING
-) -> Generator[Tuple, Any, Any]:
-    """
-    Sequentially call the generators on ``__enter__`` and ``__exit__``. Tuple of 
-    yielded values from the generators will be yielded.
-    
-    NOTE: ``BaseGeneratorQueue`` simply calls ``next`` and no ``send`` values can 
-    be specified.
-    
-    NOTE: Exceptions will NOT be processed in ``BaseGeneratorQueue``.
-    """
-    gen_list: BaseList[_BaseGeneratorT] = BaseList(__base_generators)
-    # call next and yield a tuple of yielded values
-    vals: Tuple = (gen() for gen in gen_list)
-    yield vals
-    # call next
-    for gen in gen_list:
-        gen()
-
-#
-# ContextGenerator.
-#
-
-class ContextGenerator(
-    BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
-    CoreContextGenerator[_YieldT_co, _SendT_contra, _ReturnT_co, _YieldT_co],
-    Generic[_YieldT_co, _SendT_contra, _ReturnT_co]
-):
-    """
-    Make the generator a context manager. ``__enter__`` will call ``next`` 
-    to the generator and return the yielded value, while ``__exit__`` will 
-    call ``next``, send ``exit_send_value`` or process exceptions (call 
-    ``throw``) according to different situations: if no exception is raised 
-    and ``exit_send_value`` is ``MISSING``, then ``next`` is called, or if 
-    ``exit_send_value`` is NOT ``MISSING``, then ``send`` is called, or 
-    if the exception is NOT None, then ``throw`` is called.
-    """
-    
-    @InitOnce
-    def __init__(
-        self,
-        __gen: Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
-        *,
-        stop_allowed: bool = True,
-        exit_send_value: Union[Any, Missing] = MISSING
-    ) -> None:
-        super().__init__(__gen, stop_allowed=stop_allowed)
-        self.exit_send_value = exit_send_value
-    
-    def __enter__(self) -> _YieldT_co:
-        """
-        Call ``next`` and return the yield value from the generator.
-        """
-        return self()
-    
-    def __exit__(
-        self,
-        __exc_type: Union[Type[BaseException], None],
-        __exc_value: Union[BaseException, None],
-        __traceback: Union[TracebackType, None]
-    ) -> Union[bool, None]:
-        if (
-            __exc_type is None and 
-            __exc_value is None and 
-            __traceback is None
-        ):
-            if self.exit_send_value is MISSING:
-                # Directly call ``next`` and return.
-                self()
-            else:
-                # Send ``exit_send_value``.
-                self.send(self.exit_send_value)
-            return False
-        
-        # Throw the exception to the generator.
-        exception = (__exc_type, __exc_value, __traceback)
-        try:
-            self.gen.throw(*exception)
-        except Exception as e:
-            exception = (
-                type(e),
-                e,
-                e.__traceback__
-            )
-        else:
-            exception = NOTHING
-        # Suppress or re-raise the exception.
-        if is_none_or_nothing(exception):
-            return True
-        elif exception[1] is __exc_value:
-            return False
-        else:
-            raise exception[1]
-
-
-def _empty_yield(yield_value: Any = NOTHING) -> Generator[Any, Any, None]:
-    """
-    An empty generator function used to create empty context generators.
-    """
-    yield yield_value
-
-
-def EmptyContextGenerator(yield_value: Any = NOTHING) -> ContextGenerator[Any, Any, None]:
-    """
-    Create an empty context generator that does nothing.
-    """
-    return ContextGenerator(_empty_yield(yield_value=yield_value), stop_allowed=True)
-
-#
-# Context Manager Stack
-#
-
-@contextmanager
-def ContextManagerStack(
-    __context_managers: Union[Iterable[ContextManager[_T]], EmptyFlag] = MISSING
-) -> Generator[Tuple[_T, ...], Any, Any]:
-    """
-    Call context managers in FILO order. Exceptions will be passed through each 
-    context manager until they are processed. Compared to the standard ``with`` 
-    statement, it can handle context managers of indefinite quantity. The below 
-    two examples are totally equivalent:
-    
-    ```Python
-    # Example 1
-    with A(), B(), C():
-        ...
-    
-    # Example 2
-    cm_list = [A(), B(), C()]
-    with ContextManagerStack(cm_list):
-        ...
-    ```
-    """
-    cm_list: BaseList[ContextManager[_T]] = BaseList(__context_managers)
-    # Use ``ExitStack`` to correctly process exceptions.
-    with ExitStack() as stack:
-        # returned values
-        vals: List[_T] = []
-        for cm in cm_list:
-            val = stack.enter_context(cm)
-            vals.append(val)
-            # If the context manager returns ``STOP``, then directly break.
-            if val is STOP:
-                break
-        yield tuple(vals)
+from .execution import *
 
 #
 # ItemAttrBinding
@@ -841,41 +675,6 @@ def CompositeBFS(
     
     CompositeBFT(__item, _search)
     return results
-
-#
-# Attr Proxy
-#
-
-class AttrProxy(Generic[_T]):
-    """
-    Proxy the attribute get of the given attribute list to the proxied object.
-    """
-    
-    @InitOnce
-    def __init__(
-        self,
-        __obj: _T,
-        __attrs: List[str]
-    ) -> None:
-        super().__init__()
-        self.__obj = __obj
-        self.__attrs = __attrs
-    
-    def __getattribute__(self, __name: str) -> Any:
-        if __name in _ATTR_PROXY_ESCAPED_GETATTRS:
-            return super().__getattribute__(__name)
-        # attr proxy
-        if __name in self.__attrs:
-            return getattr(self.__obj, __name)
-        return super().__getattribute__(__name)
-
-
-# These attributes are escaped from ``__getattribute__`` to avoid circular 
-# or infinite recursion problems.
-_ATTR_PROXY_ESCAPED_GETATTRS = frozenset([
-    resolve_private_attr_name(AttrProxy, '__obj'),
-    resolve_private_attr_name(AttrProxy, '__attrs')
-])
 
 #
 # Attr Observer

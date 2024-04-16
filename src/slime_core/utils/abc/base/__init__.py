@@ -15,7 +15,6 @@ from slime_core.utils.typing.native import (
     Mapping,
     Generator,
     Callable,
-    ContextManager,
     Dict,
     Sequence
 )
@@ -221,7 +220,7 @@ class CoreBiList(CoreBaseList[_BiListItemT], ABC, Generic[_BiListItemT]):
         pass
 
 #
-# Generator ABCs.
+# Generator ABC.
 #
 
 _YieldT_co = TypeVar("_YieldT_co", covariant=True)
@@ -254,39 +253,7 @@ class CoreBaseGenerator(
         pass
 
 
-_EnterT_co = TypeVar("_EnterT_co", covariant=True)
-
-
-class CoreContextGenerator(
-    CoreBaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
-    ContextManager[_EnterT_co],
-    Generic[_YieldT_co, _SendT_contra, _ReturnT_co, _EnterT_co]
-):
-    """
-    ABC of ``ContextGenerator``.
-    """
-    pass
-
-
-class CoreGeneralYieldContext(ABC, Generic[_EnterT_co]):
-    """
-    Provide a method template for yield context.
-    """
-    
-    @abstractmethod
-    def gen_yield(self, *args, **kwargs) -> Generator[_EnterT_co, Any, Any]:
-        """
-        A generator method used to build a context manager.
-        """
-        pass
-    
-    @abstractmethod
-    def gen_ctxgen(self, *args, **kwargs) -> CoreContextGenerator[_EnterT_co, Any, Any, _EnterT_co]:
-        """
-        A mixin method that wraps the generator returned by ``gen_yield`` into 
-        a ``ContextGenerator``.
-        """
-        pass
+from .execution import *
 
 #
 # ItemAttrBinding

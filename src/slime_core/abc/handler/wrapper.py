@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from slime_core.utils.abc.base import CoreContextGenerator
+from slime_core.utils.abc.base.execution import CoreContextGenerator
 from slime_core.utils.typing.native import (
     TypeVar,
     Union,

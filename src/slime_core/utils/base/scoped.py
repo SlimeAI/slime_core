@@ -30,13 +30,12 @@ from slime_core.utils.typing.extension import (
     MISSING,
     NOTHING,
     Stop,
-    STOP,
     resolve_instance_classname,
     is_empty_flag
 )
 from slime_core.utils.decorator import InitOnce
-from . import (
-    BaseList,
+from . import BaseList
+from .execution import (
     ContextManagerStack,
     ContextGenerator,
     BaseGenerator,
@@ -61,7 +60,9 @@ class ScopedManager(CoreScopedManager[_GeneralScopedT, _EnterT_co], Generic[_Gen
     """
     
     def scoped_ctxgen(self, scoped: _GeneralScopedT) -> ContextGenerator[_EnterT_co, Any, Any]:
-        manager_container: Union[CoreScopedManagerContainer[CoreScopedManager], EmptyFlag] = (
+        manager_container: Union[
+            CoreScopedManagerContainer[CoreScopedManager[CoreScoped, Any], CoreScoped], EmptyFlag
+        ] = (
             getattr(scoped, 'scoped_managers__', MISSING)
         )
         ctxgen = ContextGenerator(self.scoped_yield(scoped))
@@ -69,7 +70,10 @@ class ScopedManager(CoreScopedManager[_GeneralScopedT, _EnterT_co], Generic[_Gen
             # Disable traceback.
             return ctxgen
         else:
-            manager_container = cast(CoreScopedManagerContainer[CoreScopedManager], manager_container)
+            manager_container = cast(
+                CoreScopedManagerContainer[CoreScopedManager[CoreScoped, Any], CoreScoped],
+                manager_container
+            )
             
             def wrapper():
                 """
@@ -93,8 +97,8 @@ class ScopedManager(CoreScopedManager[_GeneralScopedT, _EnterT_co], Generic[_Gen
 
 
 class ScopedManagerContainer(
-    BaseList[CoreScopedManager],
-    CoreScopedManagerContainer[CoreScopedManager]
+    BaseList[CoreScopedManager[CoreScoped, Any]],
+    CoreScopedManagerContainer[CoreScopedManager[CoreScoped, Any], CoreScoped]
 ):
     """
     A container that contains entered scoped managers.
@@ -109,22 +113,35 @@ class ScopedGuard(
 ):
     """
     NOTE: We strongly recommend to explicitly raise an Exception rather than 
-    return ``STOP`` to intercept the guarded operations, because there is no 
+    yield ``STOP`` to intercept the guarded operations, because there is no 
     way to really know whether the operations have succeeded through the 
     returned value of the methods like ``__setattr__`` (which always returns 
     ``None``).
     """
-    def setattr_guard(self, __name: str, __value: Any) -> Union[Stop, None]:
+    def setattr_guard_yield(
+        self,
+        __scoped: _ScopedT,
+        __name: str,
+        __value: Any
+    ) -> Generator[Union[Stop, None], Any, Any]:
         # Do nothing here, and subclasses can optionally implement it.
-        pass
+        yield
 
-    def getattr_guard(self, __name: str) -> Union[Stop, None]:
+    def getattr_guard_yield(
+        self,
+        __scoped: _ScopedT,
+        __name: str
+    ) -> Generator[Union[Stop, None], Any, Any]:
         # Do nothing here, and subclasses can optionally implement it.
-        pass
+        yield
     
-    def delattr_guard(self, __name: str) -> Union[Stop, None]:
+    def delattr_guard_yield(
+        self,
+        __scoped: _ScopedT,
+        __name: str
+    ) -> Generator[Union[Stop, None], Any, Any]:
         # Do nothing here, and subclasses can optionally implement it.
-        pass
+        yield
     
     def scoped_ctxgen(self, scoped: _ScopedT) -> ContextGenerator[_EnterT_co, Any, Any]:
         if not isinstance(scoped, CoreScoped):
@@ -164,35 +181,52 @@ class ScopedGuard(
 
 
 class ScopedGuardContainer(
-    BaseList[CoreScopedGuard],
-    CoreScopedGuardContainer[CoreScopedGuard]
+    BaseList[CoreScopedGuard[CoreScoped, Any]],
+    CoreScopedGuardContainer[CoreScopedGuard[CoreScoped, Any], CoreScoped]
 ):
     """
     A container that contains entered scoped guards.
     """
     def setattr_guard(
         self,
+        __scoped: CoreScoped,
         __setattr_func: Callable[[str, Any], None],
         __name: str,
         __value: Any
     ) -> None:
-        for guard in self:
-            if guard.setattr_guard(__name, __value) is STOP:
+        with ContextManagerStack(map(
+            lambda guard: guard.setattr_guard_yield(__scoped, __name, __value), self
+        )).stack() as vals:
+            if ContextManagerStack.check_stop(vals):
                 return
-        return __setattr_func(__name, __value)
+            return __setattr_func(__name, __value)
     
-    def getattr_guard(self, __getattr_func: Callable[[str], Any], __name: str) -> Any:
-        for guard in self:
-            if guard.getattr_guard(__name) is STOP:
+    def getattr_guard(
+        self,
+        __scoped: CoreScoped,
+        __getattr_func: Callable[[str], Any],
+        __name: str
+    ) -> Any:
+        with ContextManagerStack(map(
+            lambda guard: guard.getattr_guard_yield(__scoped, __name), self
+        )).stack() as vals:
+            if ContextManagerStack.check_stop(vals):
                 # Return ``MISSING`` to denote that ``getattr`` is intercepted.
                 return MISSING
-        return __getattr_func(__name)
+            return __getattr_func(__name)
     
-    def delattr_guard(self, __delattr_func: Callable[[str], None], __name: str) -> None:
-        for guard in self:
-            if guard.delattr_guard(__name) is STOP:
+    def delattr_guard(
+        self,
+        __scoped: CoreScoped,
+        __delattr_func: Callable[[str], None],
+        __name: str
+    ) -> None:
+        with ContextManagerStack(map(
+            lambda guard: guard.delattr_guard_yield(__scoped, __name), self
+        )).stack() as vals:
+            if ContextManagerStack.check_stop(vals):
                 return
-        return __delattr_func(__name)
+            return __delattr_func(__name)
 
 
 class Scoped(CoreScoped[CoreScopedManager]):
@@ -208,12 +242,12 @@ class Scoped(CoreScoped[CoreScopedManager]):
         __scoped_managers: Union[Iterable[CoreScopedManager], EmptyFlag] = MISSING
     ) -> ContextManager[Tuple]:
         if is_empty_flag(__scoped_managers):
-            return ContextManagerStack(__scoped_managers)
+            return ContextManagerStack(__scoped_managers).stack()
         else:
             return ContextManagerStack(map(
                 lambda manager: manager.scoped_ctxgen(self),
                 cast(Iterable[CoreScopedManager], __scoped_managers)
-            ))
+            )).stack()
     
     def is_scoped_guard_enabled__(self) -> bool:
         """
@@ -230,7 +264,7 @@ class Scoped(CoreScoped[CoreScopedManager]):
             return super().__setattr__(__name, __value)
         # Pass the attribute to the guard container.
         return self.scoped_guards__.setattr_guard(
-            super().__setattr__, __name, __value
+            self, super().__setattr__, __name, __value
         )
     
     def __getattribute__(self, __name: str) -> Any:
@@ -244,7 +278,7 @@ class Scoped(CoreScoped[CoreScopedManager]):
             return super().__getattribute__(__name)
         # Pass the attribute to the guard container.
         return self.scoped_guards__.getattr_guard(
-            super().__getattribute__, __name
+            self, super().__getattribute__, __name
         )
     
     def __delattr__(self, __name: str) -> None:
@@ -256,7 +290,7 @@ class Scoped(CoreScoped[CoreScopedManager]):
             return super().__delattr__(__name)
         # Pass the attribute to the guard container.
         return self.scoped_guards__.delattr_guard(
-            super().__delattr__, __name
+            self, super().__delattr__, __name
         )
 
 
