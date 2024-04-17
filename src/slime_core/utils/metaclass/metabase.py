@@ -88,24 +88,23 @@ class Singleton(metaclass=SingletonMetaclass):
     Note that it works for each class (even subclasses) independently.
 
     Example:
+        ```Python
+        from slime_core.utils.bases import Singleton
+        class A(Singleton): pass
 
-    ```Python
-    from slime_core.utils.bases import Singleton
-    class A(Singleton): pass
+        # B inherits A
+        class B(A): pass
 
-    # B inherits A
-    class B(A): pass
+        print(A() is A())  # True
+        print(B() is B())  # True
+        print(A() is B())  # False
 
-    print(A() is A())  # True
-    print(B() is B())  # True
-    print(A() is B())  # False
-
-    \"""
-    These two values are different, because ``SingletonMetaclass`` sets ``__instance`` 
-    separately for each class it creates.
-    \"""
-    print(A._SingletonMetaclass__instance)
-    print(B._SingletonMetaclass__instance)
-    ```
+        \"""
+        These two values are different, because ``SingletonMetaclass`` sets ``__instance`` 
+        separately for each class it creates.
+        \"""
+        print(A._SingletonMetaclass__instance)
+        print(B._SingletonMetaclass__instance)
+        ```
     """
     __slots__ = ()

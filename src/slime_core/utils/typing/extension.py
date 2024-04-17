@@ -4,7 +4,6 @@ introspection utilities, etc.
 """
 import re
 import threading
-import multiprocessing
 from types import FunctionType, MethodType
 from .native import (
     Any,
@@ -37,14 +36,13 @@ class _SingletonMetaclass(type):
     def __init__(__cls, *args, **kwargs):
         # NOTE: Use ``__cls`` here to avoid naming conflicts.
         super().__init__(*args, **kwargs)
-        __cls.__t_lock = threading.Lock()
-        __cls.__p_lock = multiprocessing.Lock()
+        __cls.__t_lock = threading.RLock()
         __cls.__instance = None
 
     def __call__(__cls, *args: Any, **kwargs: Any) -> Any:
         # NOTE: Use ``__cls`` here to avoid naming conflicts.
         if __cls.__instance is None:
-            with __cls.__t_lock, __cls.__p_lock:
+            with __cls.__t_lock:
                 if __cls.__instance is None:
                     __cls.__instance = super().__call__(*args, **kwargs)
         return __cls.__instance
@@ -312,23 +310,22 @@ def compare_method(__func1: FuncOrMethod, __func2: FuncOrMethod) -> bool:
     Compare whether the two methods have the same static function reference.
     
     Example:
-    
-    ```Python
-    class A:
-        def method(self):
-            pass
-    
-    a1 = A()
-    a2 = A()
-    # False
-    print(a1.method is a1.method)
-    # False
-    print(a1.method is a2.method)
-    # True
-    print(compare_method(a1.method, a1.method))
-    # True
-    print(compare_method(a1.method, a2.method))
-    ```
+        ```Python
+        class A:
+            def method(self):
+                pass
+        
+        a1 = A()
+        a2 = A()
+        # False
+        print(a1.method is a1.method)
+        # False
+        print(a1.method is a2.method)
+        # True
+        print(compare_method(a1.method, a1.method))
+        # True
+        print(compare_method(a1.method, a2.method))
+        ```
     """
     return unwrap_method(__func1) is unwrap_method(__func2)
 
@@ -379,19 +376,18 @@ def resolve_private_attr_name(__cls: Type, __name: str) -> str:
     ``__name__`` attribute of the class should not be manually changed.
     
     Example:
-    
-    ```Python
-    class A:
-        def __init__(self):
-            self.__a = 1
-    
-    # _A__a
-    print(resolve_private_attr_name(A, '__a'))
-    
-    a_obj = A()
-    # 1
-    print(getattr(a_obj, resolve_private_attr_name(A, '__a')))
-    ```
+        ```Python
+        class A:
+            def __init__(self):
+                self.__a = 1
+        
+        # _A__a
+        print(resolve_private_attr_name(A, '__a'))
+        
+        a_obj = A()
+        # 1
+        print(getattr(a_obj, resolve_private_attr_name(A, '__a')))
+        ```
     """
     # NOTE: We do not use ``resolve_name`` to get the classname, because the private name 
     # is strictly based on the ``__name__`` of the class.
@@ -436,35 +432,34 @@ def resolve_bases(__cls: Type) -> Tuple[Type, ...]:
     relationship in this set and the set only keeps the most subclasses classes.
     
     Example:
-    
-    ```Python
-    class A: pass
-    
-    class B(A): pass
-    
-    class C(B, A): pass
-    
-    # The bases of class ``C`` is (B, A)
-    print(C.__bases__)
-    # However, the 'minimal base class set' of ``C`` is (B,) according to the 
-    # definition.
-    
-    # ``resolve_bases(C)`` still returns (B, A) because class ``C`` has attribute 
-    # ``__bases__``
-    print(resolve_bases(C))
-    
-    # NOTE: ``typing.Sequence`` is different from ``collections.abc.Sequence`` 
-    # and it doesn't have ``__bases__`` or ``__mro__``.
-    from typing import Sequence
-    print(hasattr(Sequence, '__bases__'))
-    print(hasattr(Sequence, '__mro__'))
-    print(resolve_bases(Sequence))
-    
-    # Output:
-    # False
-    # False
-    # (<class 'collections.abc.Sequence'>,)
-    ```
+        ```Python
+        class A: pass
+        
+        class B(A): pass
+        
+        class C(B, A): pass
+        
+        # The bases of class ``C`` is (B, A)
+        print(C.__bases__)
+        # However, the 'minimal base class set' of ``C`` is (B,) according to the 
+        # definition.
+        
+        # ``resolve_bases(C)`` still returns (B, A) because class ``C`` has attribute 
+        # ``__bases__``
+        print(resolve_bases(C))
+        
+        # NOTE: ``typing.Sequence`` is different from ``collections.abc.Sequence`` 
+        # and it doesn't have ``__bases__`` or ``__mro__``.
+        from typing import Sequence
+        print(hasattr(Sequence, '__bases__'))
+        print(hasattr(Sequence, '__mro__'))
+        print(resolve_bases(Sequence))
+        
+        # Output:
+        # False
+        # False
+        # (<class 'collections.abc.Sequence'>,)
+        ```
     """
     # If ``cls`` has ``__bases__``, then directly return.
     if hasattr(__cls, '__bases__'):
@@ -632,18 +627,17 @@ def class_difference(
     is large, but ignore the virtual subclasses which do not follow the mro mechanism.
     
     Example:
-    
-    ```Python
-    class A: pass
+        ```Python
+        class A: pass
 
-    class B(A): pass
+        class B(A): pass
 
-    class C: pass
+        class C: pass
 
-    class D(C): pass
+        class D(C): pass
 
-    # output: (<class '__main__.D'>, <class '__main__.D'>)
-    print(class_difference((A, C, D, D), (B, C)))
-    ```
+        # output: (<class '__main__.D'>, <class '__main__.D'>)
+        print(class_difference((A, C, D, D), (B, C)))
+        ```
     """
     return _CLASS_DIFFERENCE_DICT[algo](__x_iterable, __y_iterable)

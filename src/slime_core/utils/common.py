@@ -134,7 +134,6 @@ def make_params_hashable(
 #
 
 import threading
-import multiprocessing
 from .typing.native import (
     Mapping
 )
@@ -145,19 +144,18 @@ class Count:
     Count times of variable-get. It can be used to generate unique ids 
     of objects (e.g., handler ids can be automatically generated if 
     they are not specified by the users). The class uses a thread lock 
-    and a process lock to make the generated value globally unique.
+    to make the generated value globally unique.
     """
     def __init__(self):
         super().__init__()
         self.value = 0
-        self.__t_lock = threading.Lock()
-        self.__p_lock = multiprocessing.Lock()
+        self.__t_lock = threading.RLock()
 
     def __set__(self, *_):
         pass
 
     def __get__(self, *_):
-        with self.__t_lock, self.__p_lock:
+        with self.__t_lock:
             value = self.value
             self.value += 1
         return value

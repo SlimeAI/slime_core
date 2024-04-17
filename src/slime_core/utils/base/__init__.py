@@ -101,6 +101,7 @@ class BaseDict(CoreBaseDict[_KT, _VT], Generic[_KT, _VT]):
 #
 
 import re
+from collections import deque
 from functools import partial
 from types import TracebackType
 import slime_core.logging.logger as logger
@@ -115,7 +116,8 @@ from slime_core.utils.typing.native import (
     Generator,
     Callable,
     Set,
-    Mapping
+    Mapping,
+    Deque
 )
 from slime_core.utils.typing.extension import (
     NOTHING,
@@ -615,7 +617,7 @@ def CompositeDFT(
     __item: _CompositeStructureT,
     __func: Callable[[_CompositeStructureT], None]
 ) -> None:
-    stack: List[Union[Iterator[_CompositeStructureT], Nothing]] = [iter([__item])]
+    stack: Deque[Union[Iterator[_CompositeStructureT], Nothing]] = deque([iter([__item])])
     
     while len(stack) > 0:
         node_iter = stack[-1]
@@ -648,7 +650,7 @@ def CompositeBFT(
     __item: _CompositeStructureT,
     __func: Callable[[_CompositeStructureT], None]
 ) -> None:
-    queue: List[Union[Iterator[_CompositeStructureT], Nothing]] = [iter([__item])]
+    queue: Deque[Union[Iterator[_CompositeStructureT], Nothing]] = deque([iter([__item])])
     
     while len(queue) > 0:
         node_iter = queue[0]
@@ -656,7 +658,7 @@ def CompositeBFT(
         try:
             node = next(node_iter)
         except StopIteration:
-            queue.pop(0)
+            queue.popleft()
             continue
         
         __func(node)
@@ -793,15 +795,14 @@ class AttrObserver(CoreAttrObserver):
         real function name.
         
         Example:
-        
-        ```Python
-        class A: pass
-        
-        def b(): pass
-        
-        a = A()
-        a.c = b  # The ``func_name`` is ``c`` rather than ``b``
-        ```
+            ```Python
+            class A: pass
+            
+            def b(): pass
+            
+            a = A()
+            a.c = b  # The ``func_name`` is ``c`` rather than ``b``
+            ```
         """
         for func_name in filter(
             lambda func_name: OBSERVE_FUNC_SUFFIX_PATTERN.search(func_name) is not None,

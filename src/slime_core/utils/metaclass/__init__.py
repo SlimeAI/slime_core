@@ -124,7 +124,7 @@ class ReadonlyAttrMetaclass(type):
         return cls
 
 
-# NOTE: For backward compatibility.
+# BACKWARD: For backward compatibility.
 _ReadonlyAttrMetaclass = ReadonlyAttrMetaclass
 
 #

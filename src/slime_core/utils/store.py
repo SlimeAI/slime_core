@@ -54,9 +54,9 @@ class ScopedStore(Base, AttrObservable):
         Base.__init__(self)
         AttrObservable.__init__(self)
     
-    def init__(self, __name: str, __value: Any):
+    def init__(self, __name: str, __value: Any) -> None:
         """
-        Init attribute only when it is not set or is ``MISSING``
+        Init attribute only when it is not set or is ``MISSING``.
         """
         if (
             not self.hasattr__(__name) or 
@@ -141,12 +141,7 @@ class CoreStore(
         return scoped_store
 
     def __getattribute__(self, __name: str) -> Any:
-        if __name == 'scoped_store_local__':
-            # ``scoped_store_local__`` should always be accessed in 
-            # ``CoreStore`` rather than in ``ScopedStore``, and the 
-            # ``AttributeError`` should be directly raised if the 
-            # attribute does not exist (mostly because the subclass 
-            # did not manually create it).
+        if __name in _CORE_STORE_ESCAPED_GETATTRS:
             return super().__getattribute__(__name)
         if is_slime_naming(__name):
             # If it is slime naming, then first try to 
@@ -179,7 +174,7 @@ class CoreStore(
     
     # ScopedStore APIs.
     @OverloadFunc
-    def init__(self, __name: str, __value: Any): pass
+    def init__(self, __name: str, __value: Any) -> None: pass
     
     # Observable APIs.
     @OverloadFunc
@@ -214,9 +209,13 @@ class CoreStore(
     
     # ScopedAttr APIs.
     @OverloadFunc
-    def assign__(self, attr_assign: Mapping[str, Any]) -> "ContextGenerator[ScopedAttrAssign, Any, Any]": pass
+    def assign__(
+        self, attr_assign: Mapping[str, Any]
+    ) -> "ContextGenerator[ScopedAttrAssign, Any, Any]": pass
     @OverloadFunc
-    def restore__(self, attrs: Iterable[str]) -> "ContextGenerator[ScopedAttrRestore, Any, Any]": pass
+    def restore__(
+        self, attrs: Iterable[str]
+    ) -> "ContextGenerator[ScopedAttrRestore, Any, Any]": pass
     
     # Base APIs.
     @OverloadFunc
@@ -227,3 +226,15 @@ class CoreStore(
     def hasattr__(self, __name: str) -> bool: pass
     @OverloadFunc
     def pop__(self, __name: str, __default: Any = MISSING) -> Any: pass
+
+
+# These attributes are escaped from ``__getattribute__`` and won't be passed 
+# to the scoped store.
+_CORE_STORE_ESCAPED_GETATTRS = frozenset([
+    # ``scoped_store_local__`` should always be accessed in 
+    # ``CoreStore`` rather than in ``ScopedStore``, and the 
+    # ``AttributeError`` should be directly raised if the 
+    # attribute does not exist (mostly because the subclass 
+    # did not manually create it).
+    'scoped_store_local__'
+])

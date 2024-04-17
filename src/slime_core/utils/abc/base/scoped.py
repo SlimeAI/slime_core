@@ -69,11 +69,6 @@ class CoreScopedGuard(CoreScopedManager[_ScopedT, _EnterT_co], ABC, Generic[_Sco
     """
     ABC of ``ScopedGuard``.
     """
-    # These attributes can be used to filter the guards to be called when some operations occur.
-    guarded_attrs__: Union[EmptyFlag, Container[str]] = MISSING
-    guarded_setattrs__: Union[EmptyFlag, Container[str]] = MISSING
-    guarded_getattrs__: Union[EmptyFlag, Container[str]] = MISSING
-    guarded_delattrs__: Union[EmptyFlag, Container[str]] = MISSING
     
     @abstractmethod
     def setattr_guard_yield(

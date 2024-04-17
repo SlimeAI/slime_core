@@ -39,7 +39,7 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
         self.__namespace = namespace
         self.strict = strict
     
-    def get_namespace(self) -> str:
+    def get_namespace__(self) -> str:
         """
         Get the namespace of the registry.
         """
@@ -100,7 +100,7 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
     #
 
     @overload
-    def register_multi(
+    def register_multi__(
         self,
         keys: Iterable[_KT],
         *,
@@ -108,7 +108,7 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
         strict: Union[bool, Missing] = MISSING
     ) -> Callable[[_VT], _VT]: pass
     @overload
-    def register_multi(
+    def register_multi__(
         self,
         keys: Iterable[_KT],
         *,
@@ -117,7 +117,7 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
     ) -> _VT: pass
 
     @DecoratorCall(keyword='_cls')
-    def register_multi(
+    def register_multi__(
         self,
         keys: Iterable[_KT],
         *,
@@ -137,6 +137,9 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
         
         return decorator
 
+    # BACKWARD: For backward compatibility.
+    register_multi = register_multi__
+
     #
     # The core register method.
     #
@@ -155,13 +158,13 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
             # The key should be explicitly specified or be properly handled by subclasses, 
             # so it should never be ``MISSING`` here.
             from .exception import APIMisused
-            namespace = self.get_namespace()
+            namespace = self.get_namespace__()
             raise APIMisused(
                 f'Error when registering ``{repr(cls)}`` in registry ``{namespace}``. '
                 f'Key cannot be ``MISSING``. Check the key setting.'
             )
         if key in self and strict:
-            namespace = self.get_namespace()
+            namespace = self.get_namespace__()
             raise ValueError(
                 f'Key ``{key}`` already exists in registry ``{namespace}``.'
             )
@@ -189,7 +192,7 @@ class Registry(GeneralRegistry[str, _VT], Generic[_VT]):
             key = getattr(cls, '__name__', MISSING)
         if key is MISSING:
             from .exception import APIMisused
-            namespace = self.get_namespace()
+            namespace = self.get_namespace__()
             raise APIMisused(
                 f'Registry cannot correctly infer the ``key`` when registering '
                 f'``{repr(cls)}`` in registry {namespace}. Neither is the ``key`` '
