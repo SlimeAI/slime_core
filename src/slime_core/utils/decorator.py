@@ -15,14 +15,13 @@ from .typing.native import (
     Mapping
 )
 from .typing.extension import (
-    FuncOrMethod,
     MISSING,
     Missing,
     unwrap_method
 )
 
 _T = TypeVar("_T")
-_FuncOrMethodT = TypeVar("_FuncOrMethodT", bound=FuncOrMethod)
+_FuncOrMethodT = TypeVar("_FuncOrMethodT")
 
 
 def DecoratorCall(

@@ -186,17 +186,16 @@ class ContextManagerStack(
         context manager until they are processed. Compared to the standard ``with`` 
         statement, it can handle context managers of indefinite quantity. The below 
         two examples are totally equivalent:
-        
-        ```Python
-        # Example 1
-        with A(), B(), C():
-            ...
-        
-        # Example 2
-        cm_list = [A(), B(), C()]
-        with ContextManagerStack(cm_list).stack():
-            ...
-        ```
+            ```Python
+            # Example 1
+            with A(), B(), C():
+                ...
+            
+            # Example 2
+            cm_list = [A(), B(), C()]
+            with ContextManagerStack(cm_list).stack():
+                ...
+            ```
         """
         cm_list = BaseList(self)
         # Use ``ExitStack`` to correctly process exceptions.
