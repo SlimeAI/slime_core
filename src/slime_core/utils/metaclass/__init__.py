@@ -12,14 +12,14 @@ deprecated), and we want to distinguish between these two concepts.
 """
 from itertools import filterfalse, chain
 from slime_core.utils.typing.native import (
-    TypeVar,
     Type,
     Tuple,
     Dict,
     Any,
     TYPE_CHECKING,
     Union,
-    List
+    List,
+    Mapping
 )
 from slime_core.utils.typing.extension import (
     _SingletonMetaclass,
@@ -32,8 +32,9 @@ from slime_core.utils.typing.extension import (
     resolve_mro,
     class_difference
 )
+from slime_core.utils.exception import APIMisused
 if TYPE_CHECKING:
-    from .metabase import ReadonlyAttr
+    from .metabase import ClassAttrCompute
 
 
 def create_metaclass_adapter(
@@ -61,31 +62,6 @@ def is_metaclass_adapter(cls: Type) -> bool:
     return getattr(cls, 'metaclass_adapter__', MISSING) is True
 
 
-class CallHookMetaclass(type):
-    """
-    Hooks before and after ``__call__`` method in the metaclass.
-    """
-    
-    def __call__(__cls, *args, **kwargs):
-        # NOTE: Use ``__cls`` here to avoid naming conflicts.
-        __cls.before_call_metaclass__(args, kwargs)
-        instance = super().__call__(*args, **kwargs)
-        __cls.after_call_metaclass__(instance=instance, args=args, kwargs=kwargs)
-        return instance
-    
-    def before_call_metaclass__(cls, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
-        """
-        Hook before the ``__call__`` method.
-        """
-        pass
-    
-    def after_call_metaclass__(cls, instance, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
-        """
-        Hook after the ``__call__`` method.
-        """
-        pass
-
-
 class SingletonMetaclass(_SingletonMetaclass):
     """
     Makes a specific class a singleton class. Inherits ``_SingletonMetaclass`` in 
@@ -94,15 +70,8 @@ class SingletonMetaclass(_SingletonMetaclass):
     pass
 
 
-_ReadonlyAttrT = TypeVar("_ReadonlyAttrT", bound="ReadonlyAttr")
-
-
-class ReadonlyAttrMetaclass(type):
-    """
-    Metaclass that checks readonly attributes. It should NOT be used independently. 
-    Directly inherit ``slime_core.utils.metaclass.metabase.ReadonlyAttr`` instead.
-    """
-
+class ComputedClassAttrMetaclass(type):
+    
     def __new__(
         __meta_cls,
         __name: str,
@@ -110,18 +79,92 @@ class ReadonlyAttrMetaclass(type):
         __namespace: Dict[str, Any],
         **kwargs: Any
     ):
-        # NOTE: Use ``__meta_cls`` here to avoid naming conflicts.
-        # Check ``readonly_attr__`` defined in the class. If undefined, set it to ``()``.
-        readonly_attr__: Tuple[str, ...] = __namespace.setdefault('readonly_attr__', ())
-        # Create new class.
-        cls: Type[_ReadonlyAttrT] = super().__new__(__meta_cls, __name, __bases, __namespace, **kwargs)
-        
-        readonly_attr_computed_set = set(readonly_attr__)
-        for base in __bases:
-            readonly_attr_computed_set.update(getattr(base, 'readonly_attr_computed__', ()))
-        
-        cls.readonly_attr_computed__ = frozenset(readonly_attr_computed_set)
-        return cls
+        # Compute ``class_attr_compute__``.
+        computes = __namespace.setdefault('class_attr_compute__', MISSING)
+        computes = set(computes) if computes is not MISSING else set()
+        # NOTE: The items with the same hash keys will not be updated, so the items in 
+        # the subclass will override those in the base classes.
+        computes.update(*(
+            computed_base_attr
+            for computed_base_attr in (
+                getattr(base, 'class_attr_compute_computed__', MISSING) for base in __bases
+            )
+            if computed_base_attr is not MISSING
+        ))
+        computes = frozenset(computes)
+        __namespace['class_attr_compute_computed__'] = computes
+        # Compute class attributes.
+        for compute in computes:
+            # NOTE: The ``__namespace`` may be modified here.
+            __meta_cls.compute_class_attr_metaclass__(compute, __bases, __namespace)
+        return super().__new__(__meta_cls, __name, __bases, __namespace, **kwargs)
+    
+    @staticmethod
+    def compute_class_attr_metaclass__(
+        compute: "ClassAttrCompute",
+        bases: Tuple[Type, ...],
+        namespace: Dict[str, Any]
+    ):
+        """
+        Compute class attribute.
+        """
+        attr_name = compute.get_name()
+        computed_attr_name = compute.get_computed_name()
+        escaped_types = compute.get_escaped_types()
+        attr = namespace.setdefault(attr_name, MISSING)
+        # Check escaped types.
+        # NOTE: ``MISSING`` will never be escaped.
+        if attr is not MISSING and isinstance(attr, escaped_types):
+            namespace[computed_attr_name] = attr
+            return
+        # Check computed base attributes.
+        # Remove non-existing and ``MISSING`` attributes.
+        computed_base_attrs = tuple((
+            computed_base_attr
+            for computed_base_attr in (
+                getattr(base, computed_attr_name, MISSING) for base in bases
+            )
+            if computed_base_attr is not MISSING
+        ))
+        # Remove escaped types.
+        computed_base_attrs_non_escaped = tuple((
+            computed_base_attr 
+            for computed_base_attr in computed_base_attrs 
+            if not isinstance(computed_base_attr, escaped_types)
+        ))
+        # If ``attr`` is ``MISSING``, try to inherit from bases.
+        if attr is MISSING:
+            if len(computed_base_attrs) == 0:
+                # No bases can be inherited.
+                raise APIMisused(
+                    f'The attribute ``{attr_name}`` in the class and the computed attributes '
+                    f'``{computed_attr_name}`` in all the base classes are empty. Can not '
+                    'automatically resolve the inheritance relationship. You should manually '
+                    f'set ``{attr_name}`` for initialization.'
+                )
+            if len(computed_base_attrs_non_escaped) == 0:
+                # All the computed base attributes are of escaped types. 
+                # Select the first non-empty base class for inheritance.
+                namespace[computed_attr_name] = computed_base_attrs[0]
+                return
+            if len(computed_base_attrs_non_escaped) != len(computed_base_attrs):
+                # There are both computed types and escaped types in the base classes.
+                raise APIMisused(
+                    f'The ``{attr_name}`` in the class is empty, and there are both computed '
+                    'types and escaped types in the base classes. Can not automatically resolve '
+                    f'inheritance relationship. You should manually set ``{attr_name}`` to get '
+                    'deterministic behavior.'
+                )
+        # Compute class attrs.
+        namespace[computed_attr_name] = compute.get_compute_func()(attr, computed_base_attrs_non_escaped)
+
+
+class ReadonlyAttrMetaclass(ComputedClassAttrMetaclass):
+    """
+    Metaclass that checks readonly attributes. It should NOT be used independently. 
+    Directly inherit ``slime_core.utils.metaclass.metabase.ReadonlyAttr`` instead.
+    """
+    pass
 
 
 # BACKWARD: For backward compatibility.
@@ -149,7 +192,7 @@ class MetaclassResolver:
         metaclasses: Tuple[Union[Type, Pass], ...],
         *,
         strict: bool = True,
-        meta_kwargs: Union[Dict[str, Any], Missing] = MISSING
+        meta_kwargs: Union[Mapping[str, Any], Missing] = MISSING
     ) -> Type:
         """
         Resolve a proper metaclass with given ``bases`` and ``metaclasses``.
@@ -214,9 +257,10 @@ class MetaclassResolver:
                 required_metaclasses.add(meta_cls)
         # Resolve all the mro of metaclasses.
         metaclass_set = set(chain(*(resolve_mro(_cls) for _cls in metaclasses)))
-        missing_metaclasses = tuple(filter(
-            lambda required_cls: required_cls not in metaclass_set,
-            required_metaclasses
+        missing_metaclasses = tuple((
+            required_cls 
+            for required_cls in required_metaclasses 
+            if required_cls not in metaclass_set
         ))
         if len(missing_metaclasses) > 0:
             raise ValueError(
@@ -274,7 +318,7 @@ class MetaclassResolver:
     def load_metaclass_adapter(
         cls,
         final_metaclasses: Tuple[Type, ...],
-        meta_kwargs: Dict[str, Any]
+        meta_kwargs: Mapping[str, Any]
     ) -> Type:
         """
         Load metaclass with given ``final_metaclasses`` and ``meta_kwargs``. If adapter 
@@ -302,7 +346,7 @@ class MetaclassResolver:
         cls,
         *metaclasses: Union[Type, Pass],
         strict: bool = True,
-        meta_kwargs: Union[Dict[str, Any], Missing] = MISSING
+        meta_kwargs: Union[Mapping[str, Any], Missing] = MISSING
     ):
         """
         Make a metaclass function used to create a class.
@@ -334,7 +378,7 @@ class MetaclassResolver:
 def Metaclasses(
     *metaclasses: Union[Type, Pass],
     strict: bool = True,
-    meta_kwargs: Union[Dict[str, Any], Missing] = MISSING
+    meta_kwargs: Union[Mapping[str, Any], Missing] = MISSING
 ):
     """
     Return a proper metaclass that is compatible with all the user specified ``metaclasses`` 

@@ -13,11 +13,11 @@ from slime_core.utils.typing.native import (
     Tuple,
     Mapping,
     Callable,
-    Container,
     FrozenSet
 )
 from slime_core.utils.typing.extension import (
     EmptyFlag,
+    Missing,
     MISSING,
     Stop
 )
@@ -157,9 +157,12 @@ class CoreScoped(ABC, Generic[_ScopedManagerT]):
     ABC of ``Scoped``.
     """
     # Attributes that won't be passed to the scoped guards.
-    escaped_scoped_attrs__: FrozenSet[str] = frozenset([
-        'scoped_managers__', 'scoped_guards__', 'escaped_scoped_attrs__', 
-        'is_scoped_guard_enabled__', 'scoped__'
+    # NOTE: ABC does not provide the specific implementation, so the computed class attribute is 
+    # manually set here.
+    escaped_scoped_attrs__: Union[Iterable[str], Missing] = MISSING
+    escaped_scoped_attrs_computed__: FrozenSet[str] = frozenset([
+        'scoped_managers__', 'scoped_guards__', 'escaped_scoped_attrs_computed__', 
+        'is_scoped_guard_enabled__', 'scoped__', 'escaped_scoped_attrs__'
     ])
     # NOTE: These two attributes should be created by subclasses.
     scoped_managers__: CoreScopedManagerContainer[CoreScopedManager["CoreScoped", Any], "CoreScoped"]

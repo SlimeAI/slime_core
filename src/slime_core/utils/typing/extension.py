@@ -466,7 +466,7 @@ def resolve_bases(__cls: Type) -> Tuple[Type, ...]:
         return __cls.__bases__
 
     # Get the mro of ``cls`` (excluding itself).
-    mro_classes = list(filter(lambda _cls: _cls is not __cls, resolve_mro(__cls)))
+    mro_classes = list((_cls for _cls in resolve_mro(__cls) if _cls is not __cls))
     bases = []
     while len(mro_classes) > 0:
         # NOTE: should pop the first element in the list (index=0).
@@ -474,7 +474,7 @@ def resolve_bases(__cls: Type) -> Tuple[Type, ...]:
         bases.append(base)
         # Get the mro of ``base`` and remove them from ``mro_classes``.
         base_mro_set = set(resolve_mro(base))
-        mro_classes = list(filter(lambda _cls: _cls not in base_mro_set, mro_classes))
+        mro_classes = list((_cls for _cls in mro_classes if _cls not in base_mro_set))
     return tuple(bases)
 
 #
@@ -599,7 +599,7 @@ def _class_difference_through_mro(
     for y in __y_iterable:
         y_mro_set.update(resolve_mro(y))
     
-    return tuple(filter(lambda x: x not in y_mro_set, __x_iterable))
+    return tuple((x for x in __x_iterable if x not in y_mro_set))
 
 
 _CLASS_DIFFERENCE_DICT = {

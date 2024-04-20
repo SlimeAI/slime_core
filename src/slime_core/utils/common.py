@@ -67,22 +67,11 @@ class HashCache(ReadonlyAttr):
         """
         Determine whether the two hashable objects are equal.
         """
-        if isinstance(__value, HashCache):
-            # Compare both the ``hash_value`` and the ``hashable`` 
-            # objects.
-            return (
-                self.hash_value == __value.hash_value and 
-                self.hashable == __value.hashable
-            )
-        else:
-            try:
-                hash_value = hash(__value)
-            except TypeError:
-                hash_value = MISSING
-            return (
-                self.hash_value == hash_value and 
-                self.hashable == __value
-            )
+        return (
+            isinstance(__value, HashCache) and 
+            self.hash_value == __value.hash_value and 
+            self.hashable == __value.hashable
+        )
 
 
 def make_params_hashable(

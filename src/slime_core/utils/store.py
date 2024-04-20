@@ -16,7 +16,8 @@ from .typing.native import (
     Mapping,
     Iterable,
     ContextManager,
-    Tuple
+    Tuple,
+    FrozenSet
 )
 from .typing.extension import (
     is_slime_naming,
@@ -39,7 +40,13 @@ if TYPE_CHECKING:
         ScopedAttrRestore
     )
     from .base.execution import ContextGenerator
-    from .abc.base.scoped import CoreScopedManager
+    from .abc.base.scoped import (
+        CoreScopedManager,
+        CoreScopedManagerContainer,
+        CoreScopedGuardContainer,
+        CoreScopedGuard,
+        CoreScoped
+    )
 
 #
 # Scoped Store
@@ -99,7 +106,7 @@ class StoreLocal:
 class CoreStore(
     ItemAttrBinding,
     Singleton,
-    metaclass=Metaclasses(ABCMeta, SingletonMetaclass)
+    metaclass=Metaclasses(SingletonMetaclass, ABCMeta)
 ):
     """
     ``CoreStore`` provides a global singleton helper that manages a set of 
@@ -199,6 +206,10 @@ class CoreStore(
     def detach_attr__(self, __observer: "AttrObserver", __name: str) -> None: pass
     
     # Scoped APIs.
+    escaped_scoped_attrs__: Union[Iterable[str], Missing]
+    escaped_scoped_attrs_computed__: FrozenSet[str]
+    scoped_managers__: "CoreScopedManagerContainer[CoreScopedManager[CoreScoped, Any], CoreScoped]"
+    scoped_guards__: "CoreScopedGuardContainer[CoreScopedGuard[CoreScoped, Any], CoreScoped]"
     @OverloadFunc
     def scoped__(
         self,

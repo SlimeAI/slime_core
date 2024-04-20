@@ -1,6 +1,7 @@
 """
 Scoped lifecycle management.
 """
+from abc import ABCMeta
 import slime_core.logging.logger as logger
 from slime_core.utils.exception import APIMisused
 from slime_core.utils.abc.base.scoped import (
@@ -33,6 +34,8 @@ from slime_core.utils.typing.extension import (
     resolve_instance_classname,
     is_empty_flag
 )
+from slime_core.utils.metaclass import Metaclasses, ComputedClassAttrMetaclass
+from slime_core.utils.metaclass.metabase import ComputedClassAttr, ClassAttrCompute
 from slime_core.utils.decorator import InitOnce
 from . import BaseList
 from .execution import (
@@ -194,8 +197,9 @@ class ScopedGuardContainer(
         __name: str,
         __value: Any
     ) -> None:
-        with ContextManagerStack(map(
-            lambda guard: guard.setattr_guard_yield(__scoped, __name, __value), self
+        with ContextManagerStack((
+            guard.setattr_guard_yield(__scoped, __name, __value)
+            for guard in self
         )).stack() as vals:
             if ContextManagerStack.check_stop(vals):
                 return
@@ -207,8 +211,9 @@ class ScopedGuardContainer(
         __getattr_func: Callable[[str], Any],
         __name: str
     ) -> Any:
-        with ContextManagerStack(map(
-            lambda guard: guard.getattr_guard_yield(__scoped, __name), self
+        with ContextManagerStack((
+            guard.getattr_guard_yield(__scoped, __name)
+            for guard in self
         )).stack() as vals:
             if ContextManagerStack.check_stop(vals):
                 # Return ``MISSING`` to denote that ``getattr`` is intercepted.
@@ -221,15 +226,21 @@ class ScopedGuardContainer(
         __delattr_func: Callable[[str], None],
         __name: str
     ) -> None:
-        with ContextManagerStack(map(
-            lambda guard: guard.delattr_guard_yield(__scoped, __name), self
+        with ContextManagerStack((
+            guard.delattr_guard_yield(__scoped, __name)
+            for guard in self
         )).stack() as vals:
             if ContextManagerStack.check_stop(vals):
                 return
             return __delattr_func(__name)
 
 
-class Scoped(CoreScoped[CoreScopedManager]):
+class Scoped(
+    ComputedClassAttr,
+    CoreScoped[CoreScopedManager],
+    metaclass=Metaclasses(ComputedClassAttrMetaclass, ABCMeta)
+):
+    class_attr_compute__ = (ClassAttrCompute('escaped_scoped_attrs__', 'escaped_scoped_attrs_computed__'),)
     
     @InitOnce
     def __init__(self) -> None:
@@ -244,9 +255,9 @@ class Scoped(CoreScoped[CoreScopedManager]):
         if is_empty_flag(__scoped_managers):
             return ContextManagerStack(__scoped_managers).stack()
         else:
-            return ContextManagerStack(map(
-                lambda manager: manager.scoped_ctxgen(self),
-                cast(Iterable[CoreScopedManager], __scoped_managers)
+            return ContextManagerStack((
+                manager.scoped_ctxgen(self)
+                for manager in cast(Iterable[CoreScopedManager], __scoped_managers)
             )).stack()
     
     def is_scoped_guard_enabled__(self) -> bool:
@@ -258,7 +269,7 @@ class Scoped(CoreScoped[CoreScopedManager]):
     def __setattr__(self, __name: str, __value: Any) -> None:
         if (
             not self.is_scoped_guard_enabled__() or 
-            __name in self.escaped_scoped_attrs__ or 
+            __name in self.escaped_scoped_attrs_computed__ or 
             len(self.scoped_guards__) == 0
         ):
             return super().__setattr__(__name, __value)
@@ -272,7 +283,7 @@ class Scoped(CoreScoped[CoreScopedManager]):
             return super().__getattribute__(__name)
         if (
             not self.is_scoped_guard_enabled__() or 
-            __name in self.escaped_scoped_attrs__ or 
+            __name in self.escaped_scoped_attrs_computed__ or 
             len(self.scoped_guards__) == 0
         ):
             return super().__getattribute__(__name)
@@ -284,7 +295,7 @@ class Scoped(CoreScoped[CoreScopedManager]):
     def __delattr__(self, __name: str) -> None:
         if (
             not self.is_scoped_guard_enabled__() or 
-            __name in self.escaped_scoped_attrs__ or 
+            __name in self.escaped_scoped_attrs_computed__ or 
             len(self.scoped_guards__) == 0
         ):
             return super().__delattr__(__name)
@@ -298,7 +309,7 @@ class Scoped(CoreScoped[CoreScopedManager]):
 # or infinite recursion problems.
 _ATTR_OBSERVABLE_ESCAPED_SETATTRS = frozenset([
     'is_scoped_guard_enabled__',
-    'escaped_scoped_attrs__',
+    'escaped_scoped_attrs_computed__',
     'scoped_guards__'
 ])
 

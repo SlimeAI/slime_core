@@ -789,6 +789,9 @@ class AttrObserver(CoreAttrObserver):
         self,
         __func: Callable[[ObserveFuncType], bool]
     ) -> Dict[str, ObserveFuncType]:
+        """
+        Inspect the observe attributes.
+        """
         observe_dict: Dict[str, ObserveFuncType] = {}
         """
         NOTE: ``func_name`` here is actually the attribute name in the object, rather than the 
@@ -804,9 +807,8 @@ class AttrObserver(CoreAttrObserver):
             a.c = b  # The ``func_name`` is ``c`` rather than ``b``
             ```
         """
-        for func_name in filter(
-            lambda func_name: OBSERVE_FUNC_SUFFIX_PATTERN.search(func_name) is not None,
-            dir(self)
+        for func_name in (
+            func_name for func_name in dir(self) if OBSERVE_FUNC_SUFFIX_PATTERN.search(func_name) is not None
         ):
             func: ObserveFuncType = getattr(self, func_name)
             # inspect checking
