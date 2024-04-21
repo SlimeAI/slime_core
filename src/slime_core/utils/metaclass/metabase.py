@@ -14,7 +14,10 @@ from slime_core.utils.typing.native import (
 )
 from slime_core.utils.typing.extension import (
     MISSING,
-    Missing
+    Missing,
+    compare_method,
+    SINGLETON_INSTANCE_ATTR_NAME,
+    SINGLETON_T_LOCK_ATTR_NAME
 )
 from slime_core.utils.abc.metaclass.metabase import (
     CoreClassAttrCompute
@@ -229,3 +232,17 @@ class Singleton(metaclass=SingletonMetaclass):
         ```
     """
     __slots__ = ()
+
+    def __new__(__cls, *args, **kwargs):
+        # NOTE: Use ``__cls`` here to avoid naming conflicts.
+        if getattr(__cls, SINGLETON_INSTANCE_ATTR_NAME) is None:
+            with getattr(__cls, SINGLETON_T_LOCK_ATTR_NAME):
+                if getattr(__cls, SINGLETON_INSTANCE_ATTR_NAME) is None:
+                    if compare_method(super().__new__, object.__new__):
+                        # FIX: object.__new__() takes exactly one argument 
+                        # (the type to instantiate)
+                        instance = super().__new__(__cls)
+                    else:
+                        instance = super().__new__(__cls, *args, **kwargs)
+                    setattr(__cls, SINGLETON_INSTANCE_ATTR_NAME, instance)
+        return getattr(__cls, SINGLETON_INSTANCE_ATTR_NAME)

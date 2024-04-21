@@ -166,10 +166,6 @@ class ReadonlyAttrMetaclass(ComputedClassAttrMetaclass):
     """
     pass
 
-
-# BACKWARD: For backward compatibility.
-_ReadonlyAttrMetaclass = ReadonlyAttrMetaclass
-
 #
 # Automatically make compatible metaclasses in multiple inheritance scenarios.
 # NOTE: This module block should be put at the end of the file in order to avoid 

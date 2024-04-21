@@ -137,9 +137,6 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
         
         return decorator
 
-    # BACKWARD: For backward compatibility.
-    register_multi = register_multi__
-
     #
     # The core register method.
     #

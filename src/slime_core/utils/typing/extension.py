@@ -48,9 +48,32 @@ class _SingletonMetaclass(type):
         return __cls.__instance
 
 
+SINGLETON_T_LOCK_ATTR_NAME = '_SingletonMetaclass__t_lock'
+SINGLETON_INSTANCE_ATTR_NAME = '_SingletonMetaclass__instance'
+
+
+class _Singleton(metaclass=_SingletonMetaclass):
+    """
+    Base class of singleton classes.
+    
+    NOTE: This class is for ``slime_core.utils.typing.extension`` only.
+    """
+    __slots__ = ()
+    
+    def __new__(__cls, *args, **kwargs):
+        # NOTE: Use ``__cls`` here to avoid naming conflicts.
+        if getattr(__cls, SINGLETON_INSTANCE_ATTR_NAME) is None:
+            with getattr(__cls, SINGLETON_T_LOCK_ATTR_NAME):
+                if getattr(__cls, SINGLETON_INSTANCE_ATTR_NAME) is None:
+                    # NOTE: Directly use ``object.__new__`` here.
+                    instance = object.__new__(__cls)
+                    setattr(__cls, SINGLETON_INSTANCE_ATTR_NAME, instance)
+        return getattr(__cls, SINGLETON_INSTANCE_ATTR_NAME)
+
+
 # ``Nothing`` class, ``NOTHING`` instance and related functions.
 
-class Nothing(metaclass=_SingletonMetaclass):
+class Nothing(_Singleton):
     """
     This class defines a ``NOTHING`` constant. Different from ``None`` in Python, ``NOTHING`` 
     is more exception-friendly, which means no exception will be raised under the following 
@@ -189,7 +212,7 @@ NOTHING = Nothing()
 # Flag constants.
 #
 
-class _FlagConstant(metaclass=_SingletonMetaclass):
+class _FlagConstant(_Singleton):
     __slots__ = ()
     def __str__(self) -> str: return resolve_instance_classname(self).upper()
     def __repr__(self) -> str: return f'{str(self)}<{str(hex(id(self)))}>'
@@ -299,7 +322,7 @@ def unwrap_method(__func: Union[FuncOrMethod, NoneOrNothing]) -> Union[RawFunc, 
     """
     Get the original static function if the given ``func`` is a method.
     """
-    if isinstance(__func, MethodType):
+    while isinstance(__func, MethodType):
         # get the original function body of the method
         __func = __func.__func__
     return __func
@@ -391,7 +414,10 @@ def resolve_private_attr_name(__cls: Type, __name: str) -> str:
     """
     # NOTE: We do not use ``resolve_name`` to get the classname, because the private name 
     # is strictly based on the ``__name__`` of the class.
-    return f'_{__cls.__name__}{__name}'
+    # According to 'Python Language Reference': The transformation inserts the class name, 
+    # with leading underscores removed and a single underscore inserted, in front of the 
+    # name.
+    return f'_{__cls.__name__.lstrip("_")}{__name}'
 
 
 def resolve_mro(__cls: Type) -> Tuple[Type, ...]:
