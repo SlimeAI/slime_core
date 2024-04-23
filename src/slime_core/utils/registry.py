@@ -1,15 +1,20 @@
 """
 A convenient registry util that dynamically retrieves items based on keys.
 """
+import importlib
 from .base import BaseDict
+from .exception import APIMisused
 from .decorator import DecoratorCall
+from .common import FuncParams
 from .typing.native import (
     Union,
     Iterable,
     TypeVar,
     overload,
     Callable,
-    Generic
+    Generic,
+    Mapping,
+    Dict
 )
 from .typing.extension import (
     Missing,
@@ -27,17 +32,25 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
     We name the parameter in the methods ``cls`` (or ``_cls``) because at 
     first the registry is designed for classes, and for compatibility we 
     have not renamed the parameter (nor will we in the future).
+    
+    WARNING: You should avoid instantiating ``GeneralRegistry`` in any main 
+    scripts. It should be created in other non-main modules and imported by 
+    the main scripts instead.
     """
     
     def __init__(
         self,
         namespace: str,
         *,
-        strict: bool = True
+        strict: bool = True,
+        load_mapping: Union[Mapping[_KT, Union[str, FuncParams]], Missing] = MISSING
     ):
         super().__init__({})
         self.__namespace = namespace
-        self.strict = strict
+        self.strict__ = strict
+        self.load_mapping__: Dict[_KT, Union[str, FuncParams]] = (
+            {} if load_mapping is MISSING else dict(load_mapping)
+        )
     
     def get_namespace__(self) -> str:
         """
@@ -53,7 +66,7 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
         when registering a specific item).
         """
         return (
-            strict if strict is not MISSING else self.strict
+            strict if strict is not MISSING else self.strict__
         )
     
     #
@@ -167,6 +180,33 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
             )
         # Register ``cls`` with ``key``.
         self[key] = cls
+    
+    #
+    # Lazy loading.
+    #
+
+    def load__(self, key: _KT) -> _VT:
+        if key in self:
+            return self[key]
+        if key not in self.load_mapping__:
+            namespace = self.get_namespace__()
+            raise APIMisused(
+                f'The given key ``{key}`` does not exist in registry ``{namespace}`` or '
+                'in the load_mapping. Check the registry settings.'
+            )
+        # Import the module to load items.
+        module_setting = self.load_mapping__[key]
+        if isinstance(module_setting, FuncParams):
+            importlib.import_module(*module_setting.args, **module_setting.kwargs)
+        else:
+            importlib.import_module(module_setting)
+        if key not in self:
+            namespace = self.get_namespace__()
+            raise APIMisused(
+                f'The given key ``{key}`` still does not exist in registry ``{namespace}`` '
+                f'after loading the module ``{module_setting}``. Check the registry settings.'
+            )
+        return self[key]
 
 
 class Registry(GeneralRegistry[str, _VT], Generic[_VT]):

@@ -13,11 +13,13 @@ from .typing.native import (
     Set,
     Type,
     Union,
-    Any
+    Any,
+    List
 )
 from .typing.extension import (
     MISSING,
-    Missing
+    Missing,
+    resolve_instance_classname
 )
 from .metaclass.metabase import (
     ReadonlyAttr
@@ -35,6 +37,17 @@ class FuncParams(Generic[_ArgsT, _KwargsT]):
         # NOTE: Use ``__self`` to avoid naming conflicts.
         __self.args = args
         __self.kwargs = kwargs
+    
+    def __str__(self) -> str:
+        sep = ', '
+        params: List[str] = []
+        arg_str = sep.join(map(str, self.args))
+        if arg_str:
+            params.append(arg_str)
+        kwarg_str = dict_to_key_value_str(self.kwargs, str_sep=sep)
+        if kwarg_str:
+            params.append(kwarg_str)
+        return f'{resolve_instance_classname(self)}({sep.join(params)})'
 
 
 class HashCache(ReadonlyAttr):
