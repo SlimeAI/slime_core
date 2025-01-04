@@ -10,6 +10,7 @@ NOTE: We name all the metaclasses with ``Metaclass`` rather than the abbreviatio
 ``Meta``, because there already exists the ``Meta`` feature (although it has been 
 deprecated), and we want to distinguish between these two concepts.
 """
+
 from itertools import filterfalse, chain
 from slime_core.utils.typing.native import (
     Type,
@@ -19,7 +20,7 @@ from slime_core.utils.typing.native import (
     TYPE_CHECKING,
     Union,
     List,
-    Mapping
+    Mapping,
 )
 from slime_core.utils.typing.extension import (
     _SingletonMetaclass,
@@ -30,80 +31,85 @@ from slime_core.utils.typing.extension import (
     resolve_bases,
     resolve_minimal_classes,
     resolve_mro,
-    class_difference
+    class_difference,
 )
 from slime_core.utils.exception import APIMisused
+
 if TYPE_CHECKING:
     from .metabase import ClassAttrCompute
 
 
-def create_metaclass_adapter(
-    *metaclasses: Type,
-    **kwargs
-) -> Type:
+def create_metaclass_adapter(*metaclasses: Type, **kwargs) -> Type:
     """
     Create a new metaclass adapter with given ``metaclasses`` and ``kwargs``.
     """
+
     class MetaclassAdapter(*metaclasses, **kwargs):
-        # ``metaclass_adapter__`` works as an indicator attribute that denotes the 
+        # ``metaclass_adapter__`` works as an indicator attribute that denotes the
         # metaclass simply inherits multiple metaclasses and does nothing else.
         metaclass_adapter__ = True
-        def __str__(self) -> str: return f'{super().__str__()}{metaclasses}'
-        def __repr__(self) -> str: return f'{super().__repr__()}{metaclasses}'
-    
+
+        def __str__(self) -> str:
+            return f"{super().__str__()}{metaclasses}"
+
+        def __repr__(self) -> str:
+            return f"{super().__repr__()}{metaclasses}"
+
     return MetaclassAdapter
 
 
 def is_metaclass_adapter(cls: Type) -> bool:
     """
-    Check if a class is a metaclass adapter. Return ``True`` if and only if ``cls`` has attribute 
+    Check if a class is a metaclass adapter. Return ``True`` if and only if ``cls`` has attribute
     ``metaclass_adapter__`` and the value is ``True``.
     """
-    return getattr(cls, 'metaclass_adapter__', MISSING) is True
+    return getattr(cls, "metaclass_adapter__", MISSING) is True
 
 
 class SingletonMetaclass(_SingletonMetaclass):
     """
-    Makes a specific class a singleton class. Inherits ``_SingletonMetaclass`` in 
+    Makes a specific class a singleton class. Inherits ``_SingletonMetaclass`` in
     ``slime_core.utils.typing.extension`` for more general use.
     """
+
     pass
 
 
 class ComputedClassAttrMetaclass(type):
-    
+
     def __new__(
         __meta_cls,
         __name: str,
         __bases: Tuple[Type, ...],
         __namespace: Dict[str, Any],
-        **kwargs: Any
+        **kwargs: Any,
     ):
         # Compute ``class_attr_compute__``.
-        computes = __namespace.setdefault('class_attr_compute__', MISSING)
+        computes = __namespace.setdefault("class_attr_compute__", MISSING)
         computes = set(computes) if computes is not MISSING else set()
-        # NOTE: The items with the same hash keys will not be updated, so the items in 
+        # NOTE: The items with the same hash keys will not be updated, so the items in
         # the subclass will override those in the base classes.
-        computes.update(*(
-            computed_base_attr
-            for computed_base_attr in (
-                getattr(base, 'class_attr_compute_computed__', MISSING) for base in __bases
+        computes.update(
+            *(
+                computed_base_attr
+                for computed_base_attr in (
+                    getattr(base, "class_attr_compute_computed__", MISSING)
+                    for base in __bases
+                )
+                if computed_base_attr is not MISSING
             )
-            if computed_base_attr is not MISSING
-        ))
+        )
         computes = frozenset(computes)
-        __namespace['class_attr_compute_computed__'] = computes
+        __namespace["class_attr_compute_computed__"] = computes
         # Compute class attributes.
         for compute in computes:
             # NOTE: The ``__namespace`` may be modified here.
             __meta_cls.compute_class_attr_metaclass__(compute, __bases, __namespace)
         return super().__new__(__meta_cls, __name, __bases, __namespace, **kwargs)
-    
+
     @staticmethod
     def compute_class_attr_metaclass__(
-        compute: "ClassAttrCompute",
-        bases: Tuple[Type, ...],
-        namespace: Dict[str, Any]
+        compute: "ClassAttrCompute", bases: Tuple[Type, ...], namespace: Dict[str, Any]
     ):
         """
         Compute class attribute.
@@ -119,68 +125,77 @@ class ComputedClassAttrMetaclass(type):
             return
         # Check computed base attributes.
         # Remove non-existing and ``MISSING`` attributes.
-        computed_base_attrs = tuple((
-            computed_base_attr
-            for computed_base_attr in (
-                getattr(base, computed_attr_name, MISSING) for base in bases
+        computed_base_attrs = tuple(
+            (
+                computed_base_attr
+                for computed_base_attr in (
+                    getattr(base, computed_attr_name, MISSING) for base in bases
+                )
+                if computed_base_attr is not MISSING
             )
-            if computed_base_attr is not MISSING
-        ))
+        )
         # Remove escaped types.
-        computed_base_attrs_non_escaped = tuple((
-            computed_base_attr 
-            for computed_base_attr in computed_base_attrs 
-            if not isinstance(computed_base_attr, escaped_types)
-        ))
+        computed_base_attrs_non_escaped = tuple(
+            (
+                computed_base_attr
+                for computed_base_attr in computed_base_attrs
+                if not isinstance(computed_base_attr, escaped_types)
+            )
+        )
         # If ``attr`` is ``MISSING``, try to inherit from bases.
         if attr is MISSING:
             if len(computed_base_attrs) == 0:
                 # No bases can be inherited.
                 raise APIMisused(
-                    f'The attribute ``{attr_name}`` in the class and the computed attributes '
-                    f'``{computed_attr_name}`` in all the base classes are empty. Can not '
-                    'automatically resolve the inheritance relationship. You should manually '
-                    f'set ``{attr_name}`` for initialization.'
+                    f"The attribute ``{attr_name}`` in the class and the computed attributes "
+                    f"``{computed_attr_name}`` in all the base classes are empty. Can not "
+                    "automatically resolve the inheritance relationship. You should manually "
+                    f"set ``{attr_name}`` for initialization."
                 )
             if len(computed_base_attrs_non_escaped) == 0:
-                # All the computed base attributes are of escaped types. 
+                # All the computed base attributes are of escaped types.
                 # Select the first non-empty base class for inheritance.
                 namespace[computed_attr_name] = computed_base_attrs[0]
                 return
             if len(computed_base_attrs_non_escaped) != len(computed_base_attrs):
                 # There are both computed types and escaped types in the base classes.
                 raise APIMisused(
-                    f'The ``{attr_name}`` in the class is empty, and there are both computed '
-                    'types and escaped types in the base classes. Can not automatically resolve '
-                    f'inheritance relationship. You should manually set ``{attr_name}`` to get '
-                    'deterministic behavior.'
+                    f"The ``{attr_name}`` in the class is empty, and there are both computed "
+                    "types and escaped types in the base classes. Can not automatically resolve "
+                    f"inheritance relationship. You should manually set ``{attr_name}`` to get "
+                    "deterministic behavior."
                 )
         # Compute class attrs.
-        namespace[computed_attr_name] = compute.get_compute_func()(attr, computed_base_attrs_non_escaped)
+        namespace[computed_attr_name] = compute.get_compute_func()(
+            attr, computed_base_attrs_non_escaped
+        )
 
 
 class ReadonlyAttrMetaclass(ComputedClassAttrMetaclass):
     """
-    Metaclass that checks readonly attributes. It should NOT be used independently. 
+    Metaclass that checks readonly attributes. It should NOT be used independently.
     Directly inherit ``slime_core.utils.metaclass.metabase.ReadonlyAttr`` instead.
     """
+
     pass
+
 
 #
 # Automatically make compatible metaclasses in multiple inheritance scenarios.
-# NOTE: This module block should be put at the end of the file in order to avoid 
+# NOTE: This module block should be put at the end of the file in order to avoid
 # circular imports.
 #
 
+
 class MetaclassResolver:
     """
-    Resolve a proper metaclass that is compatible with both user specified metaclasses and 
+    Resolve a proper metaclass that is compatible with both user specified metaclasses and
     the metaclasses of the bases. Use a cache dict to improve performance.
     """
-    
+
     # A dict that stores metaclass adapters with tuple of bases and kwargs as the dict key.
     metaclass_adapter_dict__: Dict[Any, Type] = {}
-    
+
     @classmethod
     def resolve(
         cls,
@@ -188,7 +203,7 @@ class MetaclassResolver:
         metaclasses: Tuple[Union[Type, Pass], ...],
         *,
         strict: bool = True,
-        meta_kwargs: Union[Mapping[str, Any], Missing] = MISSING
+        meta_kwargs: Union[Mapping[str, Any], Missing] = MISSING,
     ) -> Type:
         """
         Resolve a proper metaclass with given ``bases`` and ``metaclasses``.
@@ -202,47 +217,39 @@ class MetaclassResolver:
             filter(cls.class_filter, metaclasses)
         )
         # Get meta bases difference.
-        meta_bases = class_difference(
-            meta_bases,
-            pure_metaclasses
-        )
-        
-        equivalent_metaclasses = resolve_minimal_classes(
-            meta_bases + pure_metaclasses
-        )
+        meta_bases = class_difference(meta_bases, pure_metaclasses)
+
+        equivalent_metaclasses = resolve_minimal_classes(meta_bases + pure_metaclasses)
         if len(equivalent_metaclasses) == 0:
             # If no metaclasses can be found, then directly return ``type``.
             return type
         elif len(equivalent_metaclasses) == 1:
-            # If the 'most derived class' can be automatically found, then 
+            # If the 'most derived class' can be automatically found, then
             # directly return it.
             return equivalent_metaclasses[0]
-        
+
         if strict:
-            # Resolve all the non-adapter metaclasses that should be specified 
+            # Resolve all the non-adapter metaclasses that should be specified
             # in ``metaclasses``.
             meta_bases = cls.resolve_required_and_adapters(meta_bases, pure_metaclasses)
         final_metaclasses = cls.resolve_final_metaclasses(meta_bases, metaclasses)
         return cls.load_metaclass_adapter(
-            final_metaclasses,
-            meta_kwargs if meta_kwargs is not MISSING else {}
+            final_metaclasses, meta_kwargs if meta_kwargs is not MISSING else {}
         )
-    
+
     @classmethod
     def resolve_required_and_adapters(
-        cls,
-        meta_bases: Tuple[Type, ...],
-        metaclasses: Tuple[Type, ...]
+        cls, meta_bases: Tuple[Type, ...], metaclasses: Tuple[Type, ...]
     ) -> Tuple[Type, ...]:
         """
-        Parse and check the required metaclasses to be specified by the users in 
-        the strict mode. Return the remaining metaclass adapters to be further 
+        Parse and check the required metaclasses to be specified by the users in
+        the strict mode. Return the remaining metaclass adapters to be further
         processed.
         """
         required_metaclasses = set(filterfalse(is_metaclass_adapter, meta_bases))
         # The ``meta_bases`` should only keep adapter metaclasses.
         meta_bases = tuple(filter(is_metaclass_adapter, meta_bases))
-        
+
         meta_queue = list(meta_bases)
         while len(meta_queue) > 0:
             meta_cls = meta_queue.pop(0)
@@ -253,27 +260,27 @@ class MetaclassResolver:
                 required_metaclasses.add(meta_cls)
         # Resolve all the mro of metaclasses.
         metaclass_set = set(chain(*(resolve_mro(_cls) for _cls in metaclasses)))
-        missing_metaclasses = tuple((
-            required_cls 
-            for required_cls in required_metaclasses 
-            if required_cls not in metaclass_set
-        ))
+        missing_metaclasses = tuple(
+            (
+                required_cls
+                for required_cls in required_metaclasses
+                if required_cls not in metaclass_set
+            )
+        )
         if len(missing_metaclasses) > 0:
             raise ValueError(
-                f'When ``strict`` is set to ``True`` in ``Metaclasses``, you should '
-                f'manually list all the required metaclasses excluding the metaclass '
-                f'adapters. Missing metaclasses: {missing_metaclasses}'
+                f"When ``strict`` is set to ``True`` in ``Metaclasses``, you should "
+                f"manually list all the required metaclasses excluding the metaclass "
+                f"adapters. Missing metaclasses: {missing_metaclasses}"
             )
         return meta_bases
-    
+
     @classmethod
     def resolve_final_metaclasses(
-        cls,
-        meta_bases: Tuple[Type, ...],
-        metaclasses: Tuple[Type, ...]
+        cls, meta_bases: Tuple[Type, ...], metaclasses: Tuple[Type, ...]
     ) -> Tuple[Type, ...]:
         """
-        Resolve the final metaclass sequence. Insert ``meta_bases`` into ``metaclasses`` 
+        Resolve the final metaclass sequence. Insert ``meta_bases`` into ``metaclasses``
         at proper positions and remove ``PASS`` values.
         """
         final_metaclasses = list(metaclasses)
@@ -297,98 +304,85 @@ class MetaclassResolver:
                     break
             if not insertion_found:
                 from slime_core.utils.exception import APIMisused
+
                 raise APIMisused(
-                    f'The ``meta_base`` {meta_base} cannot find an insertion position in '
-                    f'the metaclasses: ``{final_metaclasses}``'
+                    f"The ``meta_base`` {meta_base} cannot find an insertion position in "
+                    f"the metaclasses: ``{final_metaclasses}``"
                 )
         for meta_base, insert_anchor in insertions:
-            final_metaclasses.insert(
-                final_metaclasses.index(insert_anchor),
-                meta_base
-            )
+            final_metaclasses.insert(final_metaclasses.index(insert_anchor), meta_base)
         # Remove ``PASS`` from ``final_metaclasses``.
         final_metaclasses = tuple(filter(cls.class_filter, final_metaclasses))
         return final_metaclasses
-    
+
     @classmethod
     def load_metaclass_adapter(
-        cls,
-        final_metaclasses: Tuple[Type, ...],
-        meta_kwargs: Mapping[str, Any]
+        cls, final_metaclasses: Tuple[Type, ...], meta_kwargs: Mapping[str, Any]
     ) -> Type:
         """
-        Load metaclass with given ``final_metaclasses`` and ``meta_kwargs``. If adapter 
-        cache found, then directly return, otherwise create a new metaclass adapter and 
-        cache it in the ``metaclass_adapter_dict__``. If the params are not hashable, 
+        Load metaclass with given ``final_metaclasses`` and ``meta_kwargs``. If adapter
+        cache found, then directly return, otherwise create a new metaclass adapter and
+        cache it in the ``metaclass_adapter_dict__``. If the params are not hashable,
         then directly create a new metaclass adapter and return (without caching it).
         """
         from slime_core.utils.common import make_params_hashable, FuncParams
-        key = make_params_hashable(
-            FuncParams(*final_metaclasses, **meta_kwargs)
-        )
-        if (
-            key is not MISSING and 
-            key in cls.metaclass_adapter_dict__
-        ):
+
+        key = make_params_hashable(FuncParams(*final_metaclasses, **meta_kwargs))
+        if key is not MISSING and key in cls.metaclass_adapter_dict__:
             return cls.metaclass_adapter_dict__[key]
         # Create a new metaclass adapter.
         metaclass_adapter = create_metaclass_adapter(*final_metaclasses, **meta_kwargs)
         if key is not MISSING:
             cls.metaclass_adapter_dict__[key] = metaclass_adapter
         return metaclass_adapter
-    
+
     @classmethod
     def make_func(
         cls,
         *metaclasses: Union[Type, Pass],
         strict: bool = True,
-        meta_kwargs: Union[Mapping[str, Any], Missing] = MISSING
+        meta_kwargs: Union[Mapping[str, Any], Missing] = MISSING,
     ):
         """
         Make a metaclass function used to create a class.
         """
+
         def _metaclass_func(
             __name: str,
             __bases: Tuple[Type, ...],
             __namespace: Dict[str, Any],
-            **kwargs: Any
+            **kwargs: Any,
         ):
             return cls.resolve(
-                __bases,
-                metaclasses,
-                strict=strict,
-                meta_kwargs=meta_kwargs
+                __bases, metaclasses, strict=strict, meta_kwargs=meta_kwargs
             )(__name, __bases, __namespace, **kwargs)
+
         return _metaclass_func
-    
+
     @staticmethod
     def class_filter(__cls: Union[Type, Pass]) -> bool:
         """
         Filter function that removes ``PASS`` values.
         """
-        return (
-            __cls is not PASS
-        )
+        return __cls is not PASS
 
 
 def Metaclasses(
     *metaclasses: Union[Type, Pass],
     strict: bool = True,
-    meta_kwargs: Union[Mapping[str, Any], Missing] = MISSING
+    meta_kwargs: Union[Mapping[str, Any], Missing] = MISSING,
 ):
     """
-    Return a proper metaclass that is compatible with all the user specified ``metaclasses`` 
-    as well as the metaclasses of the bases. It makes the adaptation of metaclasses convenient, 
+    Return a proper metaclass that is compatible with all the user specified ``metaclasses``
+    as well as the metaclasses of the bases. It makes the adaptation of metaclasses convenient,
     which does not need the user manually define a new sub metaclass.
-    
-    NOTE: This function only applies when each of the metaclasses to be adapted is a ``class`` 
-    rather than a ``function``. Note that ``class Example(metaclass=func)`` is also accepted 
-    by the Python interpreter, but it doesn't apply here. If you want to make the ``func`` 
-    compatible with it, you can define a new metaclass and call the ``func`` in the ``__new__`` 
+
+    NOTE: This function only applies when each of the metaclasses to be adapted is a ``class``
+    rather than a ``function``. Note that ``class Example(metaclass=func)`` is also accepted
+    by the Python interpreter, but it doesn't apply here. If you want to make the ``func``
+    compatible with it, you can define a new metaclass and call the ``func`` in the ``__new__``
     method of the metaclass.
     """
     return MetaclassResolver.make_func(
-        *metaclasses,
-        strict=strict,
-        meta_kwargs=meta_kwargs
+        *metaclasses, strict=strict, meta_kwargs=meta_kwargs
     )

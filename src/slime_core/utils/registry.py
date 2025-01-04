@@ -1,6 +1,7 @@
 """
 A convenient registry util that dynamically retrieves items based on keys.
 """
+
 import importlib
 from .base import BaseDict
 from .exception import APIMisused
@@ -14,12 +15,9 @@ from .typing.native import (
     Callable,
     Generic,
     Mapping,
-    Dict
+    Dict,
 )
-from .typing.extension import (
-    Missing,
-    MISSING
-)
+from .typing.extension import Missing, MISSING
 
 _KT = TypeVar("_KT")
 _VT = TypeVar("_VT")
@@ -27,23 +25,23 @@ _VT = TypeVar("_VT")
 
 class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
     """
-    A general registry whose type of keys can be any specified value. 
-    
-    We name the parameter in the methods ``cls`` (or ``_cls``) because at 
-    first the registry is designed for classes, and for compatibility we 
+    A general registry whose type of keys can be any specified value.
+
+    We name the parameter in the methods ``cls`` (or ``_cls``) because at
+    first the registry is designed for classes, and for compatibility we
     have not renamed the parameter (nor will we in the future).
-    
-    WARNING: You should avoid instantiating ``GeneralRegistry`` in any main 
-    scripts. It should be created in other non-main modules and imported by 
+
+    WARNING: You should avoid instantiating ``GeneralRegistry`` in any main
+    scripts. It should be created in other non-main modules and imported by
     the main scripts instead.
     """
-    
+
     def __init__(
         self,
         namespace: str,
         *,
         strict: bool = True,
-        load_mapping: Union[Mapping[_KT, Union[str, FuncParams]], Missing] = MISSING
+        load_mapping: Union[Mapping[_KT, Union[str, FuncParams]], Missing] = MISSING,
     ):
         super().__init__({})
         self.__namespace = namespace
@@ -51,7 +49,7 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
         self.load_mapping__: Dict[_KT, Union[str, FuncParams]] = (
             {} if load_mapping is MISSING else dict(load_mapping)
         )
-    
+
     def get_namespace__(self) -> str:
         """
         Get the namespace of the registry.
@@ -60,52 +58,54 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
 
     def parse_strict__(self, strict: Union[bool, Missing] = MISSING):
         """
-        Parse the given ``strict`` value. If ``strict`` is ``MISSING``, then 
-        return ``self.strict`` (i.e., the config of the registry), else 
-        directly return ``strict`` (which will override the registry config 
+        Parse the given ``strict`` value. If ``strict`` is ``MISSING``, then
+        return ``self.strict`` (i.e., the config of the registry), else
+        directly return ``strict`` (which will override the registry config
         when registering a specific item).
         """
-        return (
-            strict if strict is not MISSING else self.strict__
-        )
-    
+        return strict if strict is not MISSING else self.strict__
+
     #
     # Register a single item using ``__call__``.
     #
-    
+
     @overload
     def __call__(
         self,
         _cls: Missing = MISSING,
         *,
         key: Union[_KT, Missing] = MISSING,
-        strict: Union[bool, Missing] = MISSING
-    ) -> Callable[[_VT], _VT]: pass
+        strict: Union[bool, Missing] = MISSING,
+    ) -> Callable[[_VT], _VT]:
+        pass
+
     @overload
     def __call__(
         self,
         _cls: _VT,
         *,
         key: Union[_KT, Missing] = MISSING,
-        strict: Union[bool, Missing] = MISSING
-    ) -> _VT: pass
-    
-    @DecoratorCall(index=1, keyword='_cls')
+        strict: Union[bool, Missing] = MISSING,
+    ) -> _VT:
+        pass
+
+    @DecoratorCall(index=1, keyword="_cls")
     def __call__(
         self,
         _cls: Union[_VT, Missing] = MISSING,
         *,
         key: Union[_KT, Missing] = MISSING,
-        strict: Union[bool, Missing] = MISSING
+        strict: Union[bool, Missing] = MISSING,
     ) -> _VT:
         """
         Register an item. Can be used as a decorator or a normal method.
         """
+
         def decorator(cls: _VT) -> _VT:
             # Call the core register method.
             self.register__(cls, key, strict)
             return cls
-        
+
         return decorator
 
     #
@@ -118,24 +118,23 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
         keys: Iterable[_KT],
         *,
         _cls: Missing = MISSING,
-        strict: Union[bool, Missing] = MISSING
-    ) -> Callable[[_VT], _VT]: pass
+        strict: Union[bool, Missing] = MISSING,
+    ) -> Callable[[_VT], _VT]:
+        pass
+
     @overload
     def register_multi__(
-        self,
-        keys: Iterable[_KT],
-        *,
-        _cls: _VT,
-        strict: Union[bool, Missing] = MISSING
-    ) -> _VT: pass
+        self, keys: Iterable[_KT], *, _cls: _VT, strict: Union[bool, Missing] = MISSING
+    ) -> _VT:
+        pass
 
-    @DecoratorCall(keyword='_cls')
+    @DecoratorCall(keyword="_cls")
     def register_multi__(
         self,
         keys: Iterable[_KT],
         *,
         _cls: Union[_VT, Missing] = MISSING,
-        strict: Union[bool, Missing] = MISSING
+        strict: Union[bool, Missing] = MISSING,
     ) -> _VT:
         """
         Register an item with multiple keys.
@@ -147,7 +146,7 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
                 # Respectively register the item with different keys.
                 self(_cls=cls, key=key, strict=strict)
             return cls
-        
+
         return decorator
 
     #
@@ -155,32 +154,30 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
     #
 
     def register__(
-        self,
-        cls: _VT,
-        key: Union[_KT, Missing],
-        strict: Union[bool, Missing]
+        self, cls: _VT, key: Union[_KT, Missing], strict: Union[bool, Missing]
     ) -> None:
         """
         Core register method. Can be overridden by subclasses for extended features.
         """
         strict = self.parse_strict__(strict)
         if key is MISSING:
-            # The key should be explicitly specified or be properly handled by subclasses, 
+            # The key should be explicitly specified or be properly handled by subclasses,
             # so it should never be ``MISSING`` here.
             from .exception import APIMisused
+
             namespace = self.get_namespace__()
             raise APIMisused(
-                f'Error when registering ``{repr(cls)}`` in registry ``{namespace}``. '
-                f'Key cannot be ``MISSING``. Check the key setting.'
+                f"Error when registering ``{repr(cls)}`` in registry ``{namespace}``. "
+                f"Key cannot be ``MISSING``. Check the key setting."
             )
         if key in self and strict:
             namespace = self.get_namespace__()
             raise ValueError(
-                f'Key ``{key}`` already exists in registry ``{namespace}``.'
+                f"Key ``{key}`` already exists in registry ``{namespace}``."
             )
         # Register ``cls`` with ``key``.
         self[key] = cls
-    
+
     #
     # Lazy loading.
     #
@@ -191,8 +188,8 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
         if key not in self.load_mapping__:
             namespace = self.get_namespace__()
             raise APIMisused(
-                f'The given key ``{key}`` does not exist in registry ``{namespace}`` or '
-                'in the load_mapping. Check the registry settings.'
+                f"The given key ``{key}`` does not exist in registry ``{namespace}`` or "
+                "in the load_mapping. Check the registry settings."
             )
         # Import the module to load items.
         module_setting = self.load_mapping__[key]
@@ -203,8 +200,8 @@ class GeneralRegistry(BaseDict[_KT, _VT], Generic[_KT, _VT]):
         if key not in self:
             namespace = self.get_namespace__()
             raise APIMisused(
-                f'The given key ``{key}`` still does not exist in registry ``{namespace}`` '
-                f'after loading the module ``{module_setting}``. Check the registry settings.'
+                f"The given key ``{key}`` still does not exist in registry ``{namespace}`` "
+                f"after loading the module ``{module_setting}``. Check the registry settings."
             )
         return self[key]
 
@@ -215,25 +212,23 @@ class Registry(GeneralRegistry[str, _VT], Generic[_VT]):
     """
 
     def register__(
-        self,
-        cls: _VT,
-        key: Union[str, Missing],
-        strict: Union[bool, Missing]
+        self, cls: _VT, key: Union[str, Missing], strict: Union[bool, Missing]
     ) -> None:
         """
-        Core register method. If ``key`` is not specified, get the ``__name__`` of 
+        Core register method. If ``key`` is not specified, get the ``__name__`` of
         ``cls`` as ``key``.
         """
         if key is MISSING:
             # Try to get the ``__name__`` of ``cls`` if ``key`` is not specified.
-            key = getattr(cls, '__name__', MISSING)
+            key = getattr(cls, "__name__", MISSING)
         if key is MISSING:
             from .exception import APIMisused
+
             namespace = self.get_namespace__()
             raise APIMisused(
-                f'Registry cannot correctly infer the ``key`` when registering '
-                f'``{repr(cls)}`` in registry {namespace}. Neither is the ``key`` '
-                f'param specified, nor does the attribute ``__name__`` exist in '
-                f'``{repr(cls)}``.'
+                f"Registry cannot correctly infer the ``key`` when registering "
+                f"``{repr(cls)}`` in registry {namespace}. Neither is the ``key`` "
+                f"param specified, nor does the attribute ``__name__`` exist in "
+                f"``{repr(cls)}``."
             )
         return super().register__(cls, key, strict)

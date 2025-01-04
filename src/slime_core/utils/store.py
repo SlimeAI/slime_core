@@ -1,12 +1,10 @@
 """
 Global store module that provides global data management.
 """
+
 import threading
 from abc import ABCMeta
-from .metaclass import (
-    SingletonMetaclass,
-    Metaclasses
-)
+from .metaclass import SingletonMetaclass, Metaclasses
 from .metaclass.metabase import Singleton
 from .typing.native import (
     Any,
@@ -17,126 +15,121 @@ from .typing.native import (
     Iterable,
     ContextManager,
     Tuple,
-    FrozenSet
+    FrozenSet,
 )
 from .typing.extension import (
     is_slime_naming,
     Missing,
     MISSING,
     NoneOrNothing,
-    EmptyFlag
+    EmptyFlag,
 )
-from .base import (
-    Base,
-    AttrObservable,
-    ItemAttrBinding
-)
+from .base import Base, AttrObservable, ItemAttrBinding
 from .decorator import RemoveOverload, OverloadFunc
+
 # type hint only
 if TYPE_CHECKING:
     from .base import AttrObserver
-    from .base.scoped import (
-        ScopedAttrAssign,
-        ScopedAttrRestore
-    )
+    from .base.scoped import ScopedAttrAssign, ScopedAttrRestore
     from .base.execution import ContextGenerator
     from .abc.base.scoped import (
         CoreScopedManager,
         CoreScopedManagerContainer,
         CoreScopedGuardContainer,
         CoreScopedGuard,
-        CoreScoped
+        CoreScoped,
     )
 
 #
 # Scoped Store
 #
 
+
 class ScopedStore(Base, AttrObservable):
     """
     A global scoped store that contains data.
     """
-    
+
     def __init__(self) -> None:
         Base.__init__(self)
         AttrObservable.__init__(self)
-    
+
     def init__(self, __name: str, __value: Any) -> None:
         """
         Init attribute only when it is not set or is ``MISSING``.
         """
-        if (
-            not self.hasattr__(__name) or 
-            getattr(self, __name, MISSING) is MISSING
-        ):
+        if not self.hasattr__(__name) or getattr(self, __name, MISSING) is MISSING:
             setattr(self, __name, __value)
+
 
 #
 # Store
 #
 
 # Attribute name used when assigning the ``ScopedStore`` to ``threading.local``.
-SCOPED_STORE_ATTR_NAME = 'scoped_store__'
+SCOPED_STORE_ATTR_NAME = "scoped_store__"
 
 
 class StoreLocal:
     """
-    Plain local object that does not support thread-independent store. Can be faster 
-    than ``threading.local``, but you should make sure that the store won't be used 
+    Plain local object that does not support thread-independent store. Can be faster
+    than ``threading.local``, but you should make sure that the store won't be used
     in thread-independent scenarios.
     """
+
     __slots__ = (SCOPED_STORE_ATTR_NAME,)
 
 
-@RemoveOverload(checklist=[
-    'init__',
-    'attach__',
-    'attach_attr__',
-    'detach__',
-    'detach_attr__',
-    'scoped__',
-    'is_scoped_guard_enabled__',
-    'assign__',
-    'restore__',
-    'from_kwargs__',
-    'from_dict__',
-    'hasattr__',
-    'pop__'
-])
+@RemoveOverload(
+    checklist=[
+        "init__",
+        "attach__",
+        "attach_attr__",
+        "detach__",
+        "detach_attr__",
+        "scoped__",
+        "is_scoped_guard_enabled__",
+        "assign__",
+        "restore__",
+        "from_kwargs__",
+        "from_dict__",
+        "hasattr__",
+        "pop__",
+    ]
+)
 class CoreStore(
-    ItemAttrBinding,
-    Singleton,
-    metaclass=Metaclasses(SingletonMetaclass, ABCMeta)
+    ItemAttrBinding, Singleton, metaclass=Metaclasses(SingletonMetaclass, ABCMeta)
 ):
     """
-    ``CoreStore`` provides a global singleton helper that manages a set of 
+    ``CoreStore`` provides a global singleton helper that manages a set of
     ``ScopedStore`` instances.
-    
-    Attribute resolution order: If the attribute name to be accessed is a 
-    slime naming, then it will first try to get the attribute from the 
-    ``CoreStore``, and if the attribute does not exist, then it will try to 
+
+    Attribute resolution order: If the attribute name to be accessed is a
+    slime naming, then it will first try to get the attribute from the
+    ``CoreStore``, and if the attribute does not exist, then it will try to
     get the attribute from the ``ScopedStore`` returned by ``current__`` (
-    referred to as 'the current store'). If the attribute name is NOT a 
-    slime naming, then directly get it from the current store. Attribute set 
-    and del operations on ``CoreStore`` will be directly proxied to the 
+    referred to as 'the current store'). If the attribute name is NOT a
+    slime naming, then directly get it from the current store. Attribute set
+    and del operations on ``CoreStore`` will be directly proxied to the
     current store, without considering the naming.
-    
-    NOTE: ``CoreStore`` should be strictly subclassed and create a new 
-    ``scoped_store_local__`` attribute in each subclass you create to ensure 
+
+    NOTE: ``CoreStore`` should be strictly subclassed and create a new
+    ``scoped_store_local__`` attribute in each subclass you create to ensure
     consistency and namespace independence.
-    
-    ``scoped_store_local__`` can be set to a ``threading.local`` object to 
-    make the store thread-independent, or can be set to a ``StoreLocal`` 
-    object (or any other plain object) to be faster under thread-dependent 
-    scenarios (where multi-threading is not used or the multiple threads 
+
+    ``scoped_store_local__`` can be set to a ``threading.local`` object to
+    make the store thread-independent, or can be set to a ``StoreLocal``
+    object (or any other plain object) to be faster under thread-dependent
+    scenarios (where multi-threading is not used or the multiple threads
     share the same store data).
     """
+
     scoped_store_local__: Union[StoreLocal, threading.local]
 
     def current__(self) -> ScopedStore:
         """
-        Get the current ``ScopedStore``. The returned store will be different if 
-        ``scoped_store_local__`` is set to ``threading.local`` in multi-threading 
+        Get the current ``ScopedStore``. The returned store will be different if
+        ``scoped_store_local__`` is set to ``threading.local`` in multi-threading
         scenarios.
         """
         scoped_store: Union[ScopedStore, Missing] = getattr(
@@ -151,18 +144,18 @@ class CoreStore(
         if __name in _CORE_STORE_ESCAPED_GETATTRS:
             return super().__getattribute__(__name)
         if is_slime_naming(__name):
-            # If it is slime naming, then first try to 
+            # If it is slime naming, then first try to
             # get the attribute from self.
             try:
                 return super().__getattribute__(__name)
             except AttributeError:
-                # ``AttributeError`` is ignored, and continue 
+                # ``AttributeError`` is ignored, and continue
                 # to get the attribute from the current store.
                 pass
-        # NOTE: We do not use ``__getattr__`` to process the 
-        # above ``AttributeError``, because if the current store 
-        # does not have the attribute, the following ``getattr`` 
-        # will be called twice (the first time is here, and the 
+        # NOTE: We do not use ``__getattr__`` to process the
+        # above ``AttributeError``, because if the current store
+        # does not have the attribute, the following ``getattr``
+        # will be called twice (the first time is here, and the
         # second time is in the ``__getattr__``).
         # Get the attribute from the current store.
         return getattr(self.current__(), __name)
@@ -170,19 +163,20 @@ class CoreStore(
     def __setattr__(self, __name: str, __value: Any) -> None:
         # Directly set the attribute to the current store.
         setattr(self.current__(), __name, __value)
-    
+
     def __delattr__(self, __name: str) -> None:
         # Directly del the attribute from the current store.
         delattr(self.current__(), __name)
-    
+
     #
     # Overload functions for type hints.
     #
-    
+
     # ScopedStore APIs.
     @OverloadFunc
-    def init__(self, __name: str, __value: Any) -> None: pass
-    
+    def init__(self, __name: str, __value: Any) -> None:
+        pass
+
     # Observable APIs.
     @OverloadFunc
     def attach__(
@@ -193,8 +187,13 @@ class CoreStore(
         namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
     ) -> None:
         pass
+
     @OverloadFunc
-    def attach_attr__(self, __observer: "AttrObserver", __name: str, *, init: bool = True) -> None: pass
+    def attach_attr__(
+        self, __observer: "AttrObserver", __name: str, *, init: bool = True
+    ) -> None:
+        pass
+
     @OverloadFunc
     def detach__(
         __observer: "AttrObserver",
@@ -202,50 +201,72 @@ class CoreStore(
         namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
     ) -> None:
         pass
+
     @OverloadFunc
-    def detach_attr__(self, __observer: "AttrObserver", __name: str) -> None: pass
-    
+    def detach_attr__(self, __observer: "AttrObserver", __name: str) -> None:
+        pass
+
     # Scoped APIs.
     escaped_scoped_attrs__: Union[Iterable[str], Missing]
     escaped_scoped_attrs_computed__: FrozenSet[str]
-    scoped_managers__: "CoreScopedManagerContainer[CoreScopedManager[CoreScoped, Any], CoreScoped]"
-    scoped_guards__: "CoreScopedGuardContainer[CoreScopedGuard[CoreScoped, Any], CoreScoped]"
+    scoped_managers__: (
+        "CoreScopedManagerContainer[CoreScopedManager[CoreScoped, Any], CoreScoped]"
+    )
+    scoped_guards__: (
+        "CoreScopedGuardContainer[CoreScopedGuard[CoreScoped, Any], CoreScoped]"
+    )
+
     @OverloadFunc
     def scoped__(
         self,
-        __scoped_managers: Union[Iterable["CoreScopedManager"], EmptyFlag] = MISSING
-    ) -> ContextManager[Tuple]: pass
+        __scoped_managers: Union[Iterable["CoreScopedManager"], EmptyFlag] = MISSING,
+    ) -> ContextManager[Tuple]:
+        pass
+
     @OverloadFunc
-    def is_scoped_guard_enabled__(self) -> bool: pass
-    
+    def is_scoped_guard_enabled__(self) -> bool:
+        pass
+
     # ScopedAttr APIs.
     @OverloadFunc
     def assign__(
         self, attr_assign: Mapping[str, Any]
-    ) -> "ContextGenerator[ScopedAttrAssign, Any, Any]": pass
+    ) -> "ContextGenerator[ScopedAttrAssign, Any, Any]":
+        pass
+
     @OverloadFunc
     def restore__(
         self, attrs: Iterable[str]
-    ) -> "ContextGenerator[ScopedAttrRestore, Any, Any]": pass
-    
+    ) -> "ContextGenerator[ScopedAttrRestore, Any, Any]":
+        pass
+
     # Base APIs.
     @OverloadFunc
-    def from_kwargs__(self, **kwargs) -> None: pass
+    def from_kwargs__(self, **kwargs) -> None:
+        pass
+
     @OverloadFunc
-    def from_dict__(self, __dict: Mapping[str, Any]) -> None: pass
+    def from_dict__(self, __dict: Mapping[str, Any]) -> None:
+        pass
+
     @OverloadFunc
-    def hasattr__(self, __name: str) -> bool: pass
+    def hasattr__(self, __name: str) -> bool:
+        pass
+
     @OverloadFunc
-    def pop__(self, __name: str, __default: Any = MISSING) -> Any: pass
+    def pop__(self, __name: str, __default: Any = MISSING) -> Any:
+        pass
 
 
-# These attributes are escaped from ``__getattribute__`` and won't be passed 
+# These attributes are escaped from ``__getattribute__`` and won't be passed
 # to the scoped store.
-_CORE_STORE_ESCAPED_GETATTRS = frozenset([
-    # ``scoped_store_local__`` should always be accessed in 
-    # ``CoreStore`` rather than in ``ScopedStore``, and the 
-    # ``AttributeError`` should be directly raised if the 
-    # attribute does not exist (mostly because the subclass 
-    # did not manually create it).
-    'scoped_store_local__'
-])
+_CORE_STORE_ESCAPED_GETATTRS = frozenset(
+    [
+        # ``scoped_store_local__`` should always be accessed in
+        # ``CoreStore`` rather than in ``ScopedStore``, and the
+        # ``AttributeError`` should be directly raised if the
+        # attribute does not exist (mostly because the subclass
+        # did not manually create it).
+        "scoped_store_local__"
+    ]
+)

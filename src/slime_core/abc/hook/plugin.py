@@ -1,9 +1,6 @@
 from abc import ABC
 from slime_core.utils.abc.base import CoreBaseList
-from slime_core.utils.typing.native import (
-    TypeVar,
-    Generic
-)
+from slime_core.utils.typing.native import TypeVar, Generic
 from .build import CoreBuildInterface
 
 _ContextT = TypeVar("_ContextT")
@@ -14,6 +11,7 @@ class CorePluginHook(CoreBuildInterface[_ContextT], ABC, Generic[_ContextT]):
     """
     Plugin hook for custom handler build.
     """
+
     pass
 
 
@@ -21,9 +19,10 @@ class CorePluginContainer(
     CorePluginHook[_ContextT],
     CoreBaseList[_PluginHookT],
     ABC,
-    Generic[_ContextT, _PluginHookT]
+    Generic[_ContextT, _PluginHookT],
 ):
     """
     Plugin container that calls plugin hooks.
     """
+
     pass

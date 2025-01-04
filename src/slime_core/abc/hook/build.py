@@ -1,9 +1,5 @@
 from abc import ABC, abstractmethod
-from slime_core.utils.typing.native import (
-    TypeVar,
-    Generic,
-    Generator
-)
+from slime_core.utils.typing.native import TypeVar, Generic, Generator
 
 _ContextT = TypeVar("_ContextT")
 
@@ -23,7 +19,7 @@ class CoreGeneralBuildHook(ABC, Generic[_ContextT]):
     @abstractmethod
     def run_build_pipeline__(self, ctx: _ContextT) -> None:
         """
-        Perform a complete build operation including build-related methods in 
+        Perform a complete build operation including build-related methods in
         launch hook, plugin hook, build hook, etc.
         """
         pass
@@ -33,7 +29,7 @@ class CoreGeneralBuildInterface(ABC, Generic[_ContextT]):
     """
     Interface for building handlers.
     """
-    
+
     @abstractmethod
     def build_pipeline_yield(self, ctx: _ContextT) -> Generator:
         """
@@ -44,21 +40,21 @@ class CoreGeneralBuildInterface(ABC, Generic[_ContextT]):
 
 
 class CoreBuildHook(ABC, Generic[_ContextT]):
-    
+
     @abstractmethod
     def build_train(self, ctx: _ContextT) -> None:
         """
         Build the handler structure for training pipelines.
         """
         pass
-    
+
     @abstractmethod
     def build_eval(self, ctx: _ContextT) -> None:
         """
         Build the handler structure for evaluation pipelines.
         """
         pass
-    
+
     @abstractmethod
     def build_predict(self, ctx: _ContextT) -> None:
         """
@@ -72,14 +68,14 @@ class CoreBuildHook(ABC, Generic[_ContextT]):
         Perform a complete build operation for building training pipelines.
         """
         pass
-    
+
     @abstractmethod
     def run_build_eval__(self, ctx: _ContextT) -> None:
         """
         Perform a complete build operation for building evaluation pipelines.
         """
         pass
-    
+
     @abstractmethod
     def run_build_predict__(self, ctx: _ContextT) -> None:
         """
@@ -96,14 +92,14 @@ class CoreBuildInterface(ABC, Generic[_ContextT]):
         Build operations before and after ``build_train`` is called.
         """
         pass
-    
+
     @abstractmethod
     def build_eval_yield(self, ctx: _ContextT) -> Generator:
         """
         Build operations before and after ``build_eval`` is called.
         """
         pass
-    
+
     @abstractmethod
     def build_predict_yield(self, ctx: _ContextT) -> Generator:
         """

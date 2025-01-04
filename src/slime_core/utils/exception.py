@@ -1,18 +1,20 @@
 """
 Custom exceptions in ``slime_core``.
 """
+
 #
 # API Misused
 #
+
 
 class APIMisused(Exception):
 
     def __init__(self, msg: str) -> None:
         super().__init__()
         self.msg = msg
-    
+
     def __str__(self) -> str:
-        return f'{self.msg}'
+        return f"{self.msg}"
 
 
 from .typing.extension import NOTHING
@@ -21,15 +23,19 @@ from .typing.extension import NOTHING
 # Base Exception class.
 #
 
+
 class HandlerBaseException(Exception):
     """
     Base exception class for all exceptions of ``Handler``.
     """
+
     pass
+
 
 #
 # Handler Interrupt exceptions.
 #
+
 
 class HandlerInterrupt(HandlerBaseException):
     """
@@ -51,7 +57,7 @@ class HandlerBreak(HandlerInterrupt):
 
 class HandlerContinue(HandlerInterrupt):
     """
-    Similar to continue, skip the remaining handlers, and proceed to 
+    Similar to continue, skip the remaining handlers, and proceed to
     the next iteration (if any).
     """
 
@@ -68,13 +74,15 @@ class HandlerTerminate(HandlerInterrupt):
         super().__init__()
         self.msg = msg
         self.raise_handler = raise_handler
-    
+
     def __str__(self) -> str:
-        return f'raise_handler: {str(self.raise_handler)}, msg: {self.msg}'
+        return f"raise_handler: {str(self.raise_handler)}, msg: {self.msg}"
+
 
 #
 # Handler Exception
 #
+
 
 class HandlerException(HandlerBaseException):
     """
@@ -85,15 +93,15 @@ class HandlerException(HandlerBaseException):
         super().__init__()
         self.exception_handler = exception_handler
         self.exception = exception
-    
+
     def __str__(self) -> str:
-        return f'exception_handler: {str(self.exception_handler)}'
+        return f"exception_handler: {str(self.exception_handler)}"
 
 
 class HandlerWrapperException(HandlerException):
     """
     Used to record the exception info raised by a ``HandlerWrapper``.
     """
-    
+
     def __str__(self) -> str:
-        return f'exception_wrapper: {str(self.exception_handler)}'
+        return f"exception_wrapper: {str(self.exception_handler)}"

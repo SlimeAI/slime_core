@@ -6,20 +6,15 @@ from slime_core.utils.typing.native import (
     Callable,
     Any,
     Iterable,
-    FrozenSet
+    FrozenSet,
 )
-from slime_core.utils.typing.extension import (
-    Missing
-)
+from slime_core.utils.typing.extension import Missing
 from slime_core.utils.decorator import OverloadFunc, RemoveOverload
 
 
-@RemoveOverload(checklist=[
-    '__hash__',
-    '__eq__'
-])
+@RemoveOverload(checklist=["__hash__", "__eq__"])
 class CoreClassAttrCompute(ABC):
-    
+
     @abstractmethod
     def get_name(self) -> str:
         """
@@ -33,7 +28,7 @@ class CoreClassAttrCompute(ABC):
         Get the computed attribute name.
         """
         pass
-    
+
     @abstractmethod
     def get_escaped_types(self) -> Tuple[Type, ...]:
         """
@@ -44,18 +39,18 @@ class CoreClassAttrCompute(ABC):
     @abstractmethod
     def get_compute_func(self) -> Callable[[Any, Tuple[Any]], Any]:
         """
-        Get the compute func. Return ``default_compute_func`` if the compute func 
+        Get the compute func. Return ``default_compute_func`` if the compute func
         is not specified.
         """
         pass
-    
+
     @OverloadFunc
     def __hash__(self) -> int:
         """
         ``__hash__`` should be implemented by subclasses.
         """
         pass
-    
+
     @OverloadFunc
     def __eq__(self, __other: Union["CoreClassAttrCompute", Any]) -> bool:
         """
@@ -65,7 +60,9 @@ class CoreClassAttrCompute(ABC):
 
     @staticmethod
     @abstractmethod
-    def default_compute_func(attr: Union[Iterable, Missing], computed_base_attrs: Tuple[Iterable]) -> FrozenSet:
+    def default_compute_func(
+        attr: Union[Iterable, Missing], computed_base_attrs: Tuple[Iterable]
+    ) -> FrozenSet:
         """
         The default compute function used when the compute func is not specified.
         """

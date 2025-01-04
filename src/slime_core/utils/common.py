@@ -1,45 +1,32 @@
 """
 Common utils in slime_core.
 """
+
 #
-# NOTE: The below module block is used to help ``Metaclasses`` create 
-# new classes, and it should be at the beginning of the file in order 
+# NOTE: The below module block is used to help ``Metaclasses`` create
+# new classes, and it should be at the beginning of the file in order
 # to avoid circular imports.
 #
-from .typing.native import (
-    Generic,
-    TypeVar,
-    Hashable,
-    Set,
-    Type,
-    Union,
-    Any,
-    List
-)
-from .typing.extension import (
-    MISSING,
-    Missing,
-    resolve_instance_classname
-)
-from .metaclass.metabase import (
-    ReadonlyAttr
-)
+from .typing.native import Generic, TypeVar, Hashable, Set, Type, Union, Any, List
+from .typing.extension import MISSING, Missing, resolve_instance_classname
+from .metaclass.metabase import ReadonlyAttr
 
-_ArgsT = TypeVar('_ArgsT')
-_KwargsT = TypeVar('_KwargsT')
+_ArgsT = TypeVar("_ArgsT")
+_KwargsT = TypeVar("_KwargsT")
 
 
 class FuncParams(Generic[_ArgsT, _KwargsT]):
     """
     Pack multiple function params in a single object.
     """
+
     def __init__(__self, *args: _ArgsT, **kwargs: _KwargsT) -> None:
         # NOTE: Use ``__self`` to avoid naming conflicts.
         __self.args = args
         __self.kwargs = kwargs
-    
+
     def __str__(self) -> str:
-        sep = ', '
+        sep = ", "
         params: List[str] = []
         arg_str = sep.join(map(str, self.args))
         if arg_str:
@@ -47,43 +34,44 @@ class FuncParams(Generic[_ArgsT, _KwargsT]):
         kwarg_str = dict_to_key_value_str(self.kwargs, str_sep=sep)
         if kwarg_str:
             params.append(kwarg_str)
-        return f'{resolve_instance_classname(self)}({sep.join(params)})'
+        return f"{resolve_instance_classname(self)}({sep.join(params)})"
 
 
 class HashCache(ReadonlyAttr):
     """
-    Cache the hash value of the given hashable item in order to improve 
+    Cache the hash value of the given hashable item in order to improve
     efficiency.
-    
-    NOTE: ``hashable`` and ``hash_value`` are set as readonly attributes 
+
+    NOTE: ``hashable`` and ``hash_value`` are set as readonly attributes
     to maintain the consistency.
-    
-    NOTE: If the ``hashable`` param is actually not hashable, then the 
-    ``hash_value`` will be set to ``MISSING``, and any attempt to get 
+
+    NOTE: If the ``hashable`` param is actually not hashable, then the
+    ``hash_value`` will be set to ``MISSING``, and any attempt to get
     the hash value of ``HashCache`` will raise a ``TypeError``.
     """
-    __slots__ = ('hashable', 'hash_value')
-    readonly_attr__ = ('hashable', 'hash_value')
+
+    __slots__ = ("hashable", "hash_value")
+    readonly_attr__ = ("hashable", "hash_value")
     missing_readonly__ = True
-    
+
     def __init__(self, hashable: Hashable) -> None:
         self.hashable = hashable
         try:
             self.hash_value = hash(hashable)
         except TypeError:
             self.hash_value = MISSING
-    
+
     def __hash__(self) -> int:
         return self.hash_value
-    
+
     def __eq__(self, __value: Any) -> bool:
         """
         Determine whether the two hashable objects are equal.
         """
         return (
-            isinstance(__value, HashCache) and 
-            self.hash_value == __value.hash_value and 
-            self.hashable == __value.hashable
+            isinstance(__value, HashCache)
+            and self.hash_value == __value.hash_value
+            and self.hashable == __value.hashable
         )
 
 
@@ -92,24 +80,24 @@ def make_params_hashable(
     typed: bool = False,
     kwarg_mark: Hashable = object(),
     type_mark: Hashable = object(),
-    fast_types: Set[Type] = {int, str}
+    fast_types: Set[Type] = {int, str},
 ) -> Union[Hashable, HashCache, Missing]:
     """
-    Make the function params a hashable item and return. If there is 
-    only a single argument and its type is in ``fast_types``, directly 
-    return it as the hashable item. If ``typed`` is True, then the type 
-    of each param value is added in the hashable item and same values 
-    with different types will be treated as different (e.g., 1 and 1.0). 
-    
-    NOTE: ``kwarg_mark`` and ``type_mark`` are two newly created object so 
+    Make the function params a hashable item and return. If there is
+    only a single argument and its type is in ``fast_types``, directly
+    return it as the hashable item. If ``typed`` is True, then the type
+    of each param value is added in the hashable item and same values
+    with different types will be treated as different (e.g., 1 and 1.0).
+
+    NOTE: ``kwarg_mark`` and ``type_mark`` are two newly created object so
     that they are distinguishable from any given func params.
-    
+
     NOTE: If the ``func_params`` contains non-hashable item (i.e., it is
     NOT hashable), then return ``MISSING``.
     """
     args = func_params.args
     kwargs = func_params.kwargs
-    # Make ``hashable`` a list here, because list modification is faster 
+    # Make ``hashable`` a list here, because list modification is faster
     # than tuple.
     hashable = list(args)
     if kwargs:
@@ -126,28 +114,26 @@ def make_params_hashable(
         return hashable[0]
     # Return ``HashCache`` to improve efficiency.
     hash_cache = HashCache(tuple(hashable))
-    return (
-        hash_cache if hash_cache.hash_value is not MISSING else MISSING
-    )
+    return hash_cache if hash_cache.hash_value is not MISSING else MISSING
+
 
 #
-# NOTE: Other module blocks should be placed below (including the related 
+# NOTE: Other module blocks should be placed below (including the related
 # imports) in order to avoid possible circular imports.
 #
 
 import threading
-from .typing.native import (
-    Mapping
-)
+from .typing.native import Mapping
 
 
 class Count:
     """
-    Count times of variable-get. It can be used to generate unique ids 
-    of objects (e.g., handler ids can be automatically generated if 
-    they are not specified by the users). The class uses a thread lock 
+    Count times of variable-get. It can be used to generate unique ids
+    of objects (e.g., handler ids can be automatically generated if
+    they are not specified by the users). The class uses a thread lock
     to make the generated value globally unique.
     """
+
     def __init__(self):
         super().__init__()
         self.value = 0
@@ -162,30 +148,25 @@ class Count:
             self.value += 1
         return value
 
+
 #
 # dict and list formatter
 #
 
-def dict_to_key_value_str_list(
-    __dict: Mapping,
-    key_value_sep: str = '='
-) -> list:
+
+def dict_to_key_value_str_list(__dict: Mapping, key_value_sep: str = "=") -> list:
     """
-    Parse items in a dict to a str list using ``key_value_sep`` to concat 
+    Parse items in a dict to a str list using ``key_value_sep`` to concat
     the keys and values.
     """
-    return [f'{key}{key_value_sep}{value}' for key, value in __dict.items()]
+    return [f"{key}{key_value_sep}{value}" for key, value in __dict.items()]
 
 
 def dict_to_key_value_str(
-    __dict: Mapping,
-    key_value_sep: str = '=',
-    str_sep: str = ', '
+    __dict: Mapping, key_value_sep: str = "=", str_sep: str = ", "
 ) -> str:
     """
-    Parse items in a dict to a str using ``key_value_sep`` to concat the 
+    Parse items in a dict to a str using ``key_value_sep`` to concat the
     keys and values, and using ``str_sep`` to concat the items.
     """
-    return str_sep.join(
-        dict_to_key_value_str_list(__dict, key_value_sep=key_value_sep)
-    )
+    return str_sep.join(dict_to_key_value_str_list(__dict, key_value_sep=key_value_sep))
