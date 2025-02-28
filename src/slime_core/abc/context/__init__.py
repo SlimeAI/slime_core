@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from slime_core.utils.abc.base import CoreBase
-from slime_core.utils.abc.base.scoped import CoreScopedManager
+from slime_core.utils.abc.base import BaseABC
+from slime_core.utils.abc.base.scoped import ScopedManagerABC
 from slime_core.utils.base.execution import ContextGenerator
 from slime_core.utils.typing.native import Union, Generic, TypeVar, Any
 from slime_core.utils.typing.extension import Nothing
@@ -9,7 +9,7 @@ from .scoped import ContextScopedInit
 _CompileT = TypeVar("_CompileT")
 
 
-class CoreTempContext(CoreBase[CoreScopedManager], ABC):
+class TempContextABC(BaseABC[ScopedManagerABC], ABC):
     """
     NOTE: ``Temp`` in the name does NOT mean the context itself is temporal and may
     be destroyed, but means some attributes in the context can be re-initialized by
@@ -37,7 +37,7 @@ class CoreTempContext(CoreBase[CoreScopedManager], ABC):
         ).scoped_ctxgen(self)
 
 
-class CoreContext(CoreTempContext, ABC, Generic[_CompileT]):
+class ContextABC(TempContextABC, ABC, Generic[_CompileT]):
 
     @property
     def compile(self) -> Union[_CompileT, Nothing]:
@@ -70,19 +70,19 @@ class CoreContext(CoreTempContext, ABC, Generic[_CompileT]):
         pass
 
 
-class CoreHookContext(CoreTempContext, ABC):
+class HookContextABC(TempContextABC, ABC):
 
     @abstractmethod
     def initialize__(self) -> None:
         # hooks
-        from slime_core.abc.hook.plugin import CorePluginContainer
+        from slime_core.abc.hook.plugin import PluginContainerABC
 
-        self.plugins: CorePluginContainer
+        self.plugins: PluginContainerABC
 
-        from slime_core.abc.hook.launch import CoreLaunchHook
+        from slime_core.abc.hook.launch import LaunchHookABC
 
-        self.launch: Union[CoreLaunchHook, Nothing]
+        self.launch: Union[LaunchHookABC, Nothing]
 
-        from slime_core.abc.hook.build import CoreBuildHook
+        from slime_core.abc.hook.build import BuildHookABC
 
-        self.build: Union[CoreBuildHook, Nothing]
+        self.build: Union[BuildHookABC, Nothing]

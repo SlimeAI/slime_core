@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from slime_core.utils.abc.base.execution import CoreContextGenerator
+from slime_core.utils.abc.base.execution import ContextGeneratorABC
 from slime_core.utils.typing.native import TypeVar, Union, Generator, Generic
-from . import CoreHandlerContainer
+from . import HandlerContainerABC
 
 _HandlerT = TypeVar("_HandlerT")
 _HandlerContainerT = TypeVar("_HandlerContainerT")
@@ -10,8 +10,8 @@ _HandlerWrapperContainerT = TypeVar("_HandlerWrapperContainerT")
 _ContextT = TypeVar("_ContextT")
 
 
-class CoreHandlerWrapper(
-    CoreHandlerContainer[
+class HandlerWrapperABC(
+    HandlerContainerABC[
         _HandlerT,
         _HandlerContainerT,
         _HandlerWrapperT,
@@ -44,7 +44,7 @@ class CoreHandlerWrapper(
         pass
 
     @abstractmethod
-    def handle_ctxgen(self, ctx: _ContextT, wrapped: _HandlerT) -> CoreContextGenerator:
+    def handle_ctxgen(self, ctx: _ContextT, wrapped: _HandlerT) -> ContextGeneratorABC:
         """
         A mixin method that wraps the generator returned by ``handle_yield`` into
         a ``ContextGenerator``.
@@ -52,8 +52,8 @@ class CoreHandlerWrapper(
         pass
 
 
-class CoreHandlerWrapperContainer(
-    CoreHandlerContainer[
+class HandlerWrapperContainerABC(
+    HandlerContainerABC[
         _HandlerT,
         _HandlerContainerT,
         _HandlerWrapperT,

@@ -17,8 +17,8 @@ from slime_core.utils.typing.native import (
     FrozenSet,
 )
 from slime_core.utils.typing.extension import EmptyFlag, Missing, MISSING, Stop
-from . import CoreBaseList
-from .execution import CoreContextGenerator
+from . import BaseListABC
+from .execution import ContextGeneratorABC
 
 _EnterT_co = TypeVar("_EnterT_co", covariant=True)
 _ScopedT = TypeVar("_ScopedT")
@@ -30,7 +30,7 @@ _ScopedGuardT = TypeVar("_ScopedGuardT")
 #
 
 
-class CoreScopedManager(ABC, Generic[_ScopedT, _EnterT_co]):
+class ScopedManagerABC(ABC, Generic[_ScopedT, _EnterT_co]):
     """
     ABC of ``ScopedManager``.
     """
@@ -45,7 +45,7 @@ class CoreScopedManager(ABC, Generic[_ScopedT, _EnterT_co]):
     @abstractmethod
     def scoped_ctxgen(
         self, scoped: _ScopedT
-    ) -> CoreContextGenerator[_EnterT_co, Any, Any, _EnterT_co]:
+    ) -> ContextGeneratorABC[_EnterT_co, Any, Any, _EnterT_co]:
         """
         A mixin method that wraps the generator returned by ``scoped_yield`` and creates a
         ``ContextGenerator``.
@@ -53,8 +53,8 @@ class CoreScopedManager(ABC, Generic[_ScopedT, _EnterT_co]):
         pass
 
 
-class CoreScopedManagerContainer(
-    CoreBaseList[_ScopedManagerT], ABC, Generic[_ScopedManagerT, _ScopedT]
+class ScopedManagerContainerABC(
+    BaseListABC[_ScopedManagerT], ABC, Generic[_ScopedManagerT, _ScopedT]
 ):
     """
     ABC of ``ScopedManagerContainer``.
@@ -63,8 +63,8 @@ class CoreScopedManagerContainer(
     pass
 
 
-class CoreScopedGuard(
-    CoreScopedManager[_ScopedT, _EnterT_co], ABC, Generic[_ScopedT, _EnterT_co]
+class ScopedGuardABC(
+    ScopedManagerABC[_ScopedT, _EnterT_co], ABC, Generic[_ScopedT, _EnterT_co]
 ):
     """
     ABC of ``ScopedGuard``.
@@ -98,8 +98,8 @@ class CoreScopedGuard(
         pass
 
 
-class CoreScopedGuardContainer(
-    CoreBaseList[_ScopedGuardT], ABC, Generic[_ScopedGuardT, _ScopedT]
+class ScopedGuardContainerABC(
+    BaseListABC[_ScopedGuardT], ABC, Generic[_ScopedGuardT, _ScopedT]
 ):
     """
     ABC of ``ScopedGuardContainer``.
@@ -137,7 +137,7 @@ class CoreScopedGuardContainer(
         pass
 
 
-class CoreScoped(ABC, Generic[_ScopedManagerT]):
+class ScopedABC(ABC, Generic[_ScopedManagerT]):
     """
     ABC of ``Scoped``.
     """
@@ -157,11 +157,11 @@ class CoreScoped(ABC, Generic[_ScopedManagerT]):
         ]
     )
     # NOTE: These two attributes should be created by subclasses.
-    scoped_managers__: CoreScopedManagerContainer[
-        CoreScopedManager["CoreScoped", Any], "CoreScoped"
+    scoped_managers__: ScopedManagerContainerABC[
+        ScopedManagerABC["ScopedABC", Any], "ScopedABC"
     ]
-    scoped_guards__: CoreScopedGuardContainer[
-        CoreScopedGuard["CoreScoped", Any], "CoreScoped"
+    scoped_guards__: ScopedGuardContainerABC[
+        ScopedGuardABC["ScopedABC", Any], "ScopedABC"
     ]
 
     @abstractmethod
@@ -187,13 +187,13 @@ class CoreScoped(ABC, Generic[_ScopedManagerT]):
 #
 
 
-class CoreScopedAttr(ABC):
+class ScopedAttrABC(ABC):
     """
     ABC of ``ScopedAttr``.
     """
 
     @abstractmethod
-    def assign__(self, attr_assign: Mapping[str, Any]) -> CoreContextGenerator:
+    def assign__(self, attr_assign: Mapping[str, Any]) -> ContextGeneratorABC:
         """
         Create a ``ScopedAttrAssign`` object and return ``scoped_gen`` with the
         ``scoped`` object bound to ``self``.
@@ -201,7 +201,7 @@ class CoreScopedAttr(ABC):
         pass
 
     @abstractmethod
-    def restore__(self, attrs: Iterable[str]) -> CoreContextGenerator:
+    def restore__(self, attrs: Iterable[str]) -> ContextGeneratorABC:
         """
         Create a ``ScopedAttrRestore`` object and return ``scoped_gen`` with the
         ``scoped`` object bound to ``self``.

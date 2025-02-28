@@ -31,7 +31,7 @@ _VT = TypeVar("_VT")
 #
 
 
-class CoreBaseDict(MutableMapping[_KT, _VT], ABC, Generic[_KT, _VT]):
+class BaseDictABC(MutableMapping[_KT, _VT], ABC, Generic[_KT, _VT]):
     """
     ABC of ``BaseDict``.
     """
@@ -57,7 +57,7 @@ class CoreBaseDict(MutableMapping[_KT, _VT], ABC, Generic[_KT, _VT]):
 
 
 @RemoveOverload(checklist=["rindex__"])
-class CoreBaseList(MutableSequence[_T], ABC, Generic[_T]):
+class BaseListABC(MutableSequence[_T], ABC, Generic[_T]):
     """
     ABC of ``BaseList``.
     """
@@ -99,7 +99,7 @@ _BiListItemT = TypeVar("_BiListItemT")
 _MutableBiListItemT = TypeVar("_MutableBiListItemT")
 
 
-class CoreBiListItem(ABC, Generic[_BiListT]):
+class BiListItemABC(ABC, Generic[_BiListT]):
     """
     ABC of ``BiListItem``.
     """
@@ -140,8 +140,8 @@ class CoreBiListItem(ABC, Generic[_BiListT]):
         pass
 
 
-class CoreMutableBiListItem(
-    CoreBiListItem[_BiListT], ABC, Generic[_MutableBiListItemT, _BiListT]
+class MutableBiListItemABC(
+    BiListItemABC[_BiListT], ABC, Generic[_MutableBiListItemT, _BiListT]
 ):
     """
     ABC of ``MutableBiListItem``.
@@ -176,7 +176,7 @@ class CoreMutableBiListItem(
         pass
 
 
-class CoreBiList(CoreBaseList[_BiListItemT], ABC, Generic[_BiListItemT]):
+class BiListABC(BaseListABC[_BiListItemT], ABC, Generic[_BiListItemT]):
     """
     ABC of ``BiList``.
     """
@@ -227,7 +227,7 @@ _SendT_contra = TypeVar("_SendT_contra", contravariant=True)
 _ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 
 
-class CoreBaseGenerator(
+class BaseGeneratorABC(
     Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
     ABC,
     Generic[_YieldT_co, _SendT_contra, _ReturnT_co],
@@ -259,7 +259,7 @@ from .execution import *
 #
 
 
-class CoreItemAttrSetBinding(ABC):
+class ItemAttrSetBindingABC(ABC):
 
     @abstractmethod
     def __setitem__(self, __name: str, __value: Any) -> None:
@@ -269,7 +269,7 @@ class CoreItemAttrSetBinding(ABC):
         pass
 
 
-class CoreItemAttrGetBinding(ABC):
+class ItemAttrGetBindingABC(ABC):
 
     @abstractmethod
     def __getitem__(self, __name: str) -> Any:
@@ -279,7 +279,7 @@ class CoreItemAttrGetBinding(ABC):
         pass
 
 
-class CoreItemAttrDelBinding(ABC):
+class ItemAttrDelBindingABC(ABC):
 
     @abstractmethod
     def __delitem__(self, __name: str) -> None:
@@ -289,8 +289,8 @@ class CoreItemAttrDelBinding(ABC):
         pass
 
 
-class CoreItemAttrBinding(
-    CoreItemAttrSetBinding, CoreItemAttrGetBinding, CoreItemAttrDelBinding, ABC
+class ItemAttrBindingABC(
+    ItemAttrSetBindingABC, ItemAttrGetBindingABC, ItemAttrDelBindingABC, ABC
 ):
     """
     Bind item operations to attribute operations.
@@ -308,10 +308,10 @@ from .scoped import *
 _ScopedManagerT = TypeVar("_ScopedManagerT")
 
 
-class CoreBase(
-    CoreScoped[_ScopedManagerT],
-    CoreScopedAttr,
-    CoreItemAttrBinding,
+class BaseABC(
+    ScopedABC[_ScopedManagerT],
+    ScopedAttrABC,
+    ItemAttrBindingABC,
     ABC,
     Generic[_ScopedManagerT],
 ):
@@ -356,7 +356,7 @@ class CoreBase(
 _CompositeStructureT = TypeVar("_CompositeStructureT")
 
 
-class CoreCompositeStructure(ABC, Generic[_CompositeStructureT]):
+class CompositeStructureABC(ABC, Generic[_CompositeStructureT]):
 
     @abstractmethod
     def composite_iterable__(self) -> Union[Iterable[_CompositeStructureT], Nothing]:
@@ -371,7 +371,7 @@ class CoreCompositeStructure(ABC, Generic[_CompositeStructureT]):
 #
 
 
-class CoreAttrObserver(ABC):
+class AttrObserverABC(ABC):
     """
     ABC of ``AttrObserver``.
     """
@@ -406,7 +406,7 @@ _AttrObserverT = TypeVar("_AttrObserverT")
 
 
 @RemoveOverload(checklist=["__setattr__"])
-class CoreAttrObservable(ABC, Generic[_AttrObserverT]):
+class AttrObservableABC(ABC, Generic[_AttrObserverT]):
     """
     ABC of ``AttrObservable``.
     """

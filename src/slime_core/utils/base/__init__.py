@@ -24,7 +24,7 @@ from slime_core.utils.typing.extension import (
     is_empty_flag,
     MISSING,
 )
-from slime_core.utils.abc.base import CoreBaseDict
+from slime_core.utils.abc.base import BaseDictABC
 from slime_core.utils.decorator import InitOnce
 
 _KT = TypeVar("_KT")
@@ -35,7 +35,7 @@ _VT = TypeVar("_VT")
 #
 
 
-class BaseDict(CoreBaseDict[_KT, _VT], Generic[_KT, _VT]):
+class BaseDict(BaseDictABC[_KT, _VT], Generic[_KT, _VT]):
     """
     A dict-like (mutable mapping) object that wraps a real Python ``dict`` (or ``MutableMapping``).
     Compared to directly inheriting from ``dict``, ``BaseDict`` implements ``set_dict__`` method,
@@ -143,19 +143,19 @@ from slime_core.utils.typing.extension import (
 )
 from slime_core.utils.decorator import DecoratorCall, FuncSetAttr
 from slime_core.utils.abc.base import (
-    CoreBaseList,
-    CoreBiListItem,
-    CoreMutableBiListItem,
-    CoreBiList,
-    CoreCompositeStructure,
-    CoreItemAttrSetBinding,
-    CoreItemAttrGetBinding,
-    CoreItemAttrDelBinding,
-    CoreItemAttrBinding,
-    CoreBase,
-    CoreBaseGenerator,
-    CoreAttrObserver,
-    CoreAttrObservable,
+    BaseListABC,
+    BiListItemABC,
+    MutableBiListItemABC,
+    BiListABC,
+    CompositeStructureABC,
+    ItemAttrSetBindingABC,
+    ItemAttrGetBindingABC,
+    ItemAttrDelBindingABC,
+    ItemAttrBindingABC,
+    BaseABC,
+    BaseGeneratorABC,
+    AttrObserverABC,
+    AttrObservableABC,
 )
 
 _T = TypeVar("_T")
@@ -166,7 +166,7 @@ _SlimeConstantT = TypeVar("_SlimeConstantT", bound=SlimeConstant)
 #
 
 
-class BaseList(CoreBaseList[_T], Generic[_T]):
+class BaseList(BaseListABC[_T], Generic[_T]):
     """
     A list-like (mutable sequence) object that wraps a real Python ``list`` (or ``MutableSequence``).
     Compared to directly inheriting from ``list``, ``BaseList`` implements ``set_list__`` method,
@@ -286,12 +286,12 @@ class BaseList(CoreBaseList[_T], Generic[_T]):
 # Bidirectional List.
 #
 
-_BiListT = TypeVar("_BiListT", bound=CoreBiList)
-_BiListItemT = TypeVar("_BiListItemT", bound=CoreBiListItem)
-_MutableBiListItemT = TypeVar("_MutableBiListItemT", bound=CoreMutableBiListItem)
+_BiListT = TypeVar("_BiListT", bound=BiListABC)
+_BiListItemT = TypeVar("_BiListItemT", bound=BiListItemABC)
+_MutableBiListItemT = TypeVar("_MutableBiListItemT", bound=MutableBiListItemABC)
 
 
-class BiListItem(CoreBiListItem[_BiListT], Generic[_BiListT]):
+class BiListItem(BiListItemABC[_BiListT], Generic[_BiListT]):
     """
     Bidirectional list item, which keeps the reference of its parent.
 
@@ -351,7 +351,7 @@ class BiListItem(CoreBiListItem[_BiListT], Generic[_BiListT]):
 
 class MutableBiListItem(
     BiListItem[_BiListT],
-    CoreMutableBiListItem[_MutableBiListItemT, _BiListT],
+    MutableBiListItemABC[_MutableBiListItemT, _BiListT],
     Generic[_MutableBiListItemT, _BiListT],
 ):
     """
@@ -393,7 +393,7 @@ class MutableBiListItem(
             self.process_unmatched_parent__()
 
 
-class BiList(BaseList[_BiListItemT], CoreBiList[_BiListItemT], Generic[_BiListItemT]):
+class BiList(BaseList[_BiListItemT], BiListABC[_BiListItemT], Generic[_BiListItemT]):
     """
     The ``BiList`` container that contains ``BiListItem``.
     """
@@ -467,7 +467,7 @@ _ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 
 
 class BaseGenerator(
-    CoreBaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
+    BaseGeneratorABC[_YieldT_co, _SendT_contra, _ReturnT_co],
     Generic[_YieldT_co, _SendT_contra, _ReturnT_co],
 ):
     """
@@ -541,7 +541,7 @@ from .execution import *
 #
 
 
-class ItemAttrSetBinding(CoreItemAttrSetBinding):
+class ItemAttrSetBinding(ItemAttrSetBindingABC):
     """
     Bind ``__setitem__`` to ``__setattr__``.
     """
@@ -550,7 +550,7 @@ class ItemAttrSetBinding(CoreItemAttrSetBinding):
         return setattr(self, __name, __value)
 
 
-class ItemAttrGetBinding(CoreItemAttrGetBinding):
+class ItemAttrGetBinding(ItemAttrGetBindingABC):
     """
     Bind ``__getitem__`` to ``getattr``.
     """
@@ -559,7 +559,7 @@ class ItemAttrGetBinding(CoreItemAttrGetBinding):
         return getattr(self, __name)
 
 
-class ItemAttrDelBinding(CoreItemAttrDelBinding):
+class ItemAttrDelBinding(ItemAttrDelBindingABC):
     """
     Bind ``__delitem__`` to ``delattr``.
     """
@@ -569,7 +569,7 @@ class ItemAttrDelBinding(CoreItemAttrDelBinding):
 
 
 class ItemAttrBinding(
-    ItemAttrSetBinding, ItemAttrGetBinding, ItemAttrDelBinding, CoreItemAttrBinding
+    ItemAttrSetBinding, ItemAttrGetBinding, ItemAttrDelBinding, ItemAttrBindingABC
 ):
     """
     Bind item operations to attribute operations.
@@ -585,7 +585,7 @@ from .scoped import *
 #
 
 
-class Base(Scoped, ScopedAttr, ItemAttrBinding, CoreBase[CoreScopedManager]):
+class Base(Scoped, ScopedAttr, ItemAttrBinding, BaseABC[ScopedManagerABC]):
     """
     ``Base`` class provides abundant object services:
 
@@ -636,7 +636,7 @@ _CompositeStructureT = TypeVar("_CompositeStructureT", bound="CompositeStructure
 
 
 class CompositeStructure(
-    CoreCompositeStructure[_CompositeStructureT], Generic[_CompositeStructureT]
+    CompositeStructureABC[_CompositeStructureT], Generic[_CompositeStructureT]
 ):
     pass
 
@@ -772,7 +772,7 @@ class _AttrObservableDict(BaseDict[str, _AttrObservableInfo]):
         return self.get_observable_id__(__observable) in self
 
 
-class AttrObserver(CoreAttrObserver):
+class AttrObserver(AttrObserverABC):
 
     @InitOnce
     def __init__(self) -> None:
@@ -879,7 +879,7 @@ class _AttrObserverDict(BaseDict[str, List[AttrObserver]]):
                 del self[__name]
 
 
-class AttrObservable(CoreAttrObservable[AttrObserver]):
+class AttrObservable(AttrObservableABC[AttrObserver]):
     """
     NOTE: The ``__init__`` method of ``AttrObservable`` should always be called
     first before other attributes can be set.

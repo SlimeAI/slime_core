@@ -20,7 +20,7 @@ from slime_core.utils.typing.extension import (
     SINGLETON_INSTANCE_ATTR_NAME,
     SINGLETON_T_LOCK_ATTR_NAME,
 )
-from slime_core.utils.abc.metaclass.metabase import CoreClassAttrCompute
+from slime_core.utils.abc.metaclass.metabase import ClassAttrComputeABC
 from slime_core.utils.exception import APIMisused
 from . import ComputedClassAttrMetaclass, ReadonlyAttrMetaclass, SingletonMetaclass
 
@@ -29,7 +29,7 @@ from . import ComputedClassAttrMetaclass, ReadonlyAttrMetaclass, SingletonMetacl
 #
 
 
-class ClassAttrCompute(CoreClassAttrCompute):
+class ClassAttrCompute(ClassAttrComputeABC):
     """
     Set class attribute computation rules.
     """

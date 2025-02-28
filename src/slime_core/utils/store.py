@@ -33,11 +33,11 @@ if TYPE_CHECKING:
     from .base.scoped import ScopedAttrAssign, ScopedAttrRestore
     from .base.execution import ContextGenerator
     from .abc.base.scoped import (
-        CoreScopedManager,
-        CoreScopedManagerContainer,
-        CoreScopedGuardContainer,
-        CoreScopedGuard,
-        CoreScoped,
+        ScopedManagerABC,
+        ScopedManagerContainerABC,
+        ScopedGuardContainerABC,
+        ScopedGuardABC,
+        ScopedABC,
     )
 
 #
@@ -97,23 +97,23 @@ class StoreLocal:
         "pop__",
     ]
 )
-class CoreStore(
+class StoreABC(
     ItemAttrBinding, Singleton, metaclass=Metaclasses(SingletonMetaclass, ABCMeta)
 ):
     """
-    ``CoreStore`` provides a global singleton helper that manages a set of
+    ``StoreABC`` provides a global singleton helper that manages a set of
     ``ScopedStore`` instances.
 
     Attribute resolution order: If the attribute name to be accessed is a
     slime naming, then it will first try to get the attribute from the
-    ``CoreStore``, and if the attribute does not exist, then it will try to
+    ``StoreABC``, and if the attribute does not exist, then it will try to
     get the attribute from the ``ScopedStore`` returned by ``current__`` (
     referred to as 'the current store'). If the attribute name is NOT a
     slime naming, then directly get it from the current store. Attribute set
-    and del operations on ``CoreStore`` will be directly proxied to the
+    and del operations on ``StoreABC`` will be directly proxied to the
     current store, without considering the naming.
 
-    NOTE: ``CoreStore`` should be strictly subclassed and create a new
+    NOTE: ``StoreABC`` should be strictly subclassed and create a new
     ``scoped_store_local__`` attribute in each subclass you create to ensure
     consistency and namespace independence.
 
@@ -210,16 +210,16 @@ class CoreStore(
     escaped_scoped_attrs__: Union[Iterable[str], Missing]
     escaped_scoped_attrs_computed__: FrozenSet[str]
     scoped_managers__: (
-        "CoreScopedManagerContainer[CoreScopedManager[CoreScoped, Any], CoreScoped]"
+        "ScopedManagerContainerABC[ScopedManagerABC[ScopedABC, Any], ScopedABC]"
     )
     scoped_guards__: (
-        "CoreScopedGuardContainer[CoreScopedGuard[CoreScoped, Any], CoreScoped]"
+        "ScopedGuardContainerABC[ScopedGuardABC[ScopedABC, Any], ScopedABC]"
     )
 
     @OverloadFunc
     def scoped__(
         self,
-        __scoped_managers: Union[Iterable["CoreScopedManager"], EmptyFlag] = MISSING,
+        __scoped_managers: Union[Iterable["ScopedManagerABC"], EmptyFlag] = MISSING,
     ) -> ContextManager[Tuple]:
         pass
 
@@ -263,7 +263,7 @@ class CoreStore(
 _CORE_STORE_ESCAPED_GETATTRS = frozenset(
     [
         # ``scoped_store_local__`` should always be accessed in
-        # ``CoreStore`` rather than in ``ScopedStore``, and the
+        # ``StoreABC`` rather than in ``ScopedStore``, and the
         # ``AttributeError`` should be directly raised if the
         # attribute does not exist (mostly because the subclass
         # did not manually create it).

@@ -19,7 +19,7 @@ class CompileFuncParams(FuncParams[_ArgsT, _KwargsT], Generic[_ArgsT, _KwargsT])
     pass
 
 
-class CoreCompile(ABC, Generic[_ContextT]):
+class CompileABC(ABC, Generic[_ContextT]):
 
     @property
     def ctx(self) -> Union[_ContextT, Nothing]:

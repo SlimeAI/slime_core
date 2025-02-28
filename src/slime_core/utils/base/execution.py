@@ -5,9 +5,9 @@ Execution control.
 from types import TracebackType
 from contextlib import contextmanager, ExitStack
 from slime_core.utils.abc.base.execution import (
-    CoreContextGenerator,
-    CoreBaseGeneratorQueue,
-    CoreContextManagerStack,
+    ContextGeneratorABC,
+    BaseGeneratorQueueABC,
+    ContextManagerStackABC,
 )
 from slime_core.utils.typing.native import (
     TypeVar,
@@ -36,7 +36,7 @@ _BaseGeneratorT = TypeVar("_BaseGeneratorT", bound=BaseGenerator)
 
 class BaseGeneratorQueue(
     BaseList[_BaseGeneratorT],
-    CoreBaseGeneratorQueue[_BaseGeneratorT],
+    BaseGeneratorQueueABC[_BaseGeneratorT],
     Generic[_BaseGeneratorT],
 ):
     """
@@ -77,7 +77,7 @@ _ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 
 class ContextGenerator(
     BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
-    CoreContextGenerator[_YieldT_co, _SendT_contra, _ReturnT_co, _YieldT_co],
+    ContextGeneratorABC[_YieldT_co, _SendT_contra, _ReturnT_co, _YieldT_co],
     Generic[_YieldT_co, _SendT_contra, _ReturnT_co],
 ):
     """
@@ -164,7 +164,7 @@ _EnterT_co = TypeVar("_EnterT_co", covariant=True)
 
 class ContextManagerStack(
     BaseList[ContextManager[_EnterT_co]],
-    CoreContextManagerStack[ContextManager[_EnterT_co]],
+    ContextManagerStackABC[ContextManager[_EnterT_co]],
     Generic[_EnterT_co],
 ):
     """

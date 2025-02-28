@@ -10,7 +10,7 @@ from slime_core.utils.typing.extension import NoneOrNothing, Pass, PASS
 _T = TypeVar("_T")
 
 
-class CoreLaunchUtil(ABC):
+class LaunchUtilABC(ABC):
     """
     Launch util that defines different behaviors in different launch modes such as
     non-distributed (vanilla) launch, distributed launch, etc.
@@ -19,7 +19,7 @@ class CoreLaunchUtil(ABC):
     def __init__(self) -> None:
         # Just for type hint here. Concrete attribute assignment should be completed
         # in the subclasses.
-        self.dist_comm: Union[CoreDistComm, NoneOrNothing]
+        self.dist_comm: Union[DistCommABC, NoneOrNothing]
 
     @abstractmethod
     def call(
@@ -89,7 +89,7 @@ class CoreLaunchUtil(ABC):
         "scatter_object",
     ]
 )
-class CoreDistComm(ABC):
+class DistCommABC(ABC):
     """
     Distributed communication APIs including gather, all_gather, broadcast,
     scatter, etc.

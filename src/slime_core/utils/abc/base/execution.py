@@ -13,13 +13,13 @@ from slime_core.utils.typing.native import (
     Tuple,
 )
 from slime_core.utils.typing.extension import Stop
-from . import CoreBaseGenerator, CoreBaseList
+from . import BaseGeneratorABC, BaseListABC
 
 _BaseGeneratorT = TypeVar("_BaseGeneratorT")
 
 
-class CoreBaseGeneratorQueue(
-    CoreBaseList[_BaseGeneratorT], ABC, Generic[_BaseGeneratorT]
+class BaseGeneratorQueueABC(
+    BaseListABC[_BaseGeneratorT], ABC, Generic[_BaseGeneratorT]
 ):
     """
     ABC of ``BaseGeneratorQueue``.
@@ -40,8 +40,8 @@ _ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 _EnterT_co = TypeVar("_EnterT_co", covariant=True)
 
 
-class CoreContextGenerator(
-    CoreBaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
+class ContextGeneratorABC(
+    BaseGeneratorABC[_YieldT_co, _SendT_contra, _ReturnT_co],
     ContextManager[_EnterT_co],
     Generic[_YieldT_co, _SendT_contra, _ReturnT_co, _EnterT_co],
 ):
@@ -52,8 +52,8 @@ class CoreContextGenerator(
     pass
 
 
-class CoreContextManagerStack(
-    CoreBaseList[ContextManager[_EnterT_co]], ABC, Generic[_EnterT_co]
+class ContextManagerStackABC(
+    BaseListABC[ContextManager[_EnterT_co]], ABC, Generic[_EnterT_co]
 ):
     """
     ABC of ``ContextManagerStack``.
@@ -80,7 +80,7 @@ class CoreContextManagerStack(
         pass
 
 
-class CoreGeneralYieldContext(ABC, Generic[_EnterT_co]):
+class GeneralYieldContextABC(ABC, Generic[_EnterT_co]):
     """
     Provide a method template for yield context.
     """
@@ -95,7 +95,7 @@ class CoreGeneralYieldContext(ABC, Generic[_EnterT_co]):
     @abstractmethod
     def gen_ctxgen(
         self, *args, **kwargs
-    ) -> CoreContextGenerator[_EnterT_co, Any, Any, _EnterT_co]:
+    ) -> ContextGeneratorABC[_EnterT_co, Any, Any, _EnterT_co]:
         """
         A mixin method that wraps the generator returned by ``gen_yield`` into
         a ``ContextGenerator``.

@@ -2,16 +2,16 @@ from slime_core.utils.base.scoped import ScopedManager
 from slime_core.utils.typing.native import TYPE_CHECKING, Any, Generator, TypeVar
 
 if TYPE_CHECKING:
-    from . import CoreTempContext
+    from . import TempContextABC
 
-_ScopedT = TypeVar("_ScopedT", bound="CoreTempContext")
+_ScopedT = TypeVar("_ScopedT", bound="TempContextABC")
 
 
-class CoreContextScopedManager(ScopedManager[_ScopedT, None]):
+class ContextScopedManagerABC(ScopedManager[_ScopedT, None]):
     pass
 
 
-class ContextScopedInit(CoreContextScopedManager["CoreTempContext"]):
+class ContextScopedInit(ContextScopedManagerABC["TempContextABC"]):
     """
     Try to call ``initialize__`` when entering or exiting the context.
 
@@ -24,7 +24,7 @@ class ContextScopedInit(CoreContextScopedManager["CoreTempContext"]):
         self.enter_init = enter_init
         self.exit_init = exit_init
 
-    def scoped_yield(self, scoped: "CoreTempContext") -> Generator[None, Any, Any]:
+    def scoped_yield(self, scoped: "TempContextABC") -> Generator[None, Any, Any]:
         if self.enter_init:
             # Init at entering.
             scoped.initialize__()

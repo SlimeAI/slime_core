@@ -6,12 +6,12 @@ from abc import ABCMeta
 import slime_core.logging.logger as logger
 from slime_core.utils.exception import APIMisused
 from slime_core.utils.abc.base.scoped import (
-    CoreScopedManager,
-    CoreScopedManagerContainer,
-    CoreScoped,
-    CoreScopedAttr,
-    CoreScopedGuard,
-    CoreScopedGuardContainer,
+    ScopedManagerABC,
+    ScopedManagerContainerABC,
+    ScopedABC,
+    ScopedAttrABC,
+    ScopedGuardABC,
+    ScopedGuardContainerABC,
 )
 from slime_core.utils.typing.native import (
     Callable,
@@ -48,10 +48,10 @@ from .execution import (
 
 _EnterT_co = TypeVar("_EnterT_co", covariant=True)
 # NOTE: The ``ScopedManager`` may accept plain objects that are not
-# instances of ``CoreScoped``.
-_GeneralScopedT = TypeVar("_GeneralScopedT", bound=Union[CoreScoped, Any])
-# NOTE: The ``ScopedGuard`` can only accept ``CoreScoped`` objects.
-_ScopedT = TypeVar("_ScopedT", bound=CoreScoped)
+# instances of ``ScopedABC``.
+_GeneralScopedT = TypeVar("_GeneralScopedT", bound=Union[ScopedABC, Any])
+# NOTE: The ``ScopedGuard`` can only accept ``ScopedABC`` objects.
+_ScopedT = TypeVar("_ScopedT", bound=ScopedABC)
 
 #
 # Scoped base class.
@@ -59,7 +59,7 @@ _ScopedT = TypeVar("_ScopedT", bound=CoreScoped)
 
 
 class ScopedManager(
-    CoreScopedManager[_GeneralScopedT, _EnterT_co], Generic[_GeneralScopedT, _EnterT_co]
+    ScopedManagerABC[_GeneralScopedT, _EnterT_co], Generic[_GeneralScopedT, _EnterT_co]
 ):
     """
     ``ScopedManager`` defines a generator method API used for scoped
@@ -70,7 +70,7 @@ class ScopedManager(
         self, scoped: _GeneralScopedT
     ) -> ContextGenerator[_EnterT_co, Any, Any]:
         manager_container: Union[
-            CoreScopedManagerContainer[CoreScopedManager[CoreScoped, Any], CoreScoped],
+            ScopedManagerContainerABC[ScopedManagerABC[ScopedABC, Any], ScopedABC],
             EmptyFlag,
         ] = getattr(scoped, "scoped_managers__", MISSING)
         ctxgen = ContextGenerator(self.scoped_yield(scoped))
@@ -79,8 +79,8 @@ class ScopedManager(
             return ctxgen
         else:
             manager_container = cast(
-                CoreScopedManagerContainer[
-                    CoreScopedManager[CoreScoped, Any], CoreScoped
+                ScopedManagerContainerABC[
+                    ScopedManagerABC[ScopedABC, Any], ScopedABC
                 ],
                 manager_container,
             )
@@ -107,8 +107,8 @@ class ScopedManager(
 
 
 class ScopedManagerContainer(
-    BaseList[CoreScopedManager[CoreScoped, Any]],
-    CoreScopedManagerContainer[CoreScopedManager[CoreScoped, Any], CoreScoped],
+    BaseList[ScopedManagerABC[ScopedABC, Any]],
+    ScopedManagerContainerABC[ScopedManagerABC[ScopedABC, Any], ScopedABC],
 ):
     """
     A container that contains entered scoped managers.
@@ -119,7 +119,7 @@ class ScopedManagerContainer(
 
 class ScopedGuard(
     ScopedManager[_ScopedT, _EnterT_co],
-    CoreScopedGuard[_ScopedT, _EnterT_co],
+    ScopedGuardABC[_ScopedT, _EnterT_co],
     Generic[_ScopedT, _EnterT_co],
 ):
     """
@@ -149,10 +149,10 @@ class ScopedGuard(
         yield
 
     def scoped_ctxgen(self, scoped: _ScopedT) -> ContextGenerator[_EnterT_co, Any, Any]:
-        if not isinstance(scoped, CoreScoped):
+        if not isinstance(scoped, ScopedABC):
             raise APIMisused(
                 "``ScopedGuard`` can only be applied to instances of ``Scoped`` or "
-                "``CoreScoped``."
+                "``ScopedABC``."
             )
 
         guard_enabled = scoped.is_scoped_guard_enabled__()
@@ -186,8 +186,8 @@ class ScopedGuard(
 
 
 class ScopedGuardContainer(
-    BaseList[CoreScopedGuard[CoreScoped, Any]],
-    CoreScopedGuardContainer[CoreScopedGuard[CoreScoped, Any], CoreScoped],
+    BaseList[ScopedGuardABC[ScopedABC, Any]],
+    ScopedGuardContainerABC[ScopedGuardABC[ScopedABC, Any], ScopedABC],
 ):
     """
     A container that contains entered scoped guards.
@@ -195,7 +195,7 @@ class ScopedGuardContainer(
 
     def setattr_guard(
         self,
-        __scoped: CoreScoped,
+        __scoped: ScopedABC,
         __setattr_func: Callable[[str, Any], None],
         __name: str,
         __value: Any,
@@ -208,7 +208,7 @@ class ScopedGuardContainer(
             return __setattr_func(__name, __value)
 
     def getattr_guard(
-        self, __scoped: CoreScoped, __getattr_func: Callable[[str], Any], __name: str
+        self, __scoped: ScopedABC, __getattr_func: Callable[[str], Any], __name: str
     ) -> Any:
         with ContextManagerStack(
             (guard.getattr_guard_yield(__scoped, __name) for guard in self)
@@ -219,7 +219,7 @@ class ScopedGuardContainer(
             return __getattr_func(__name)
 
     def delattr_guard(
-        self, __scoped: CoreScoped, __delattr_func: Callable[[str], None], __name: str
+        self, __scoped: ScopedABC, __delattr_func: Callable[[str], None], __name: str
     ) -> None:
         with ContextManagerStack(
             (guard.delattr_guard_yield(__scoped, __name) for guard in self)
@@ -231,7 +231,7 @@ class ScopedGuardContainer(
 
 class Scoped(
     ComputedClassAttr,
-    CoreScoped[CoreScopedManager],
+    ScopedABC[ScopedManagerABC],
     metaclass=Metaclasses(ComputedClassAttrMetaclass, ABCMeta),
 ):
     class_attr_compute__ = (
@@ -245,7 +245,7 @@ class Scoped(
         object.__setattr__(self, "scoped_guards__", ScopedGuardContainer())
 
     def scoped__(
-        self, __scoped_managers: Union[Iterable[CoreScopedManager], EmptyFlag] = MISSING
+        self, __scoped_managers: Union[Iterable[ScopedManagerABC], EmptyFlag] = MISSING
     ) -> ContextManager[Tuple]:
         if is_empty_flag(__scoped_managers):
             return ContextManagerStack(__scoped_managers).stack()
@@ -253,7 +253,7 @@ class Scoped(
             return ContextManagerStack(
                 (
                     manager.scoped_ctxgen(self)
-                    for manager in cast(Iterable[CoreScopedManager], __scoped_managers)
+                    for manager in cast(Iterable[ScopedManagerABC], __scoped_managers)
                 )
             ).stack()
 
@@ -372,7 +372,7 @@ class ScopedAttrAssign(ScopedAttrRestore[_GeneralScopedT], Generic[_GeneralScope
             super_gen()
 
 
-class ScopedAttr(CoreScopedAttr):
+class ScopedAttr(ScopedAttrABC):
     """
     Helper class that implements ``ScopedAttrAssign`` and ``ScopedAttrRestore``
     through methods.

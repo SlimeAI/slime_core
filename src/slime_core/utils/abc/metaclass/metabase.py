@@ -13,7 +13,7 @@ from slime_core.utils.decorator import OverloadFunc, RemoveOverload
 
 
 @RemoveOverload(checklist=["__hash__", "__eq__"])
-class CoreClassAttrCompute(ABC):
+class ClassAttrComputeABC(ABC):
 
     @abstractmethod
     def get_name(self) -> str:
@@ -52,7 +52,7 @@ class CoreClassAttrCompute(ABC):
         pass
 
     @OverloadFunc
-    def __eq__(self, __other: Union["CoreClassAttrCompute", Any]) -> bool:
+    def __eq__(self, __other: Union["ClassAttrComputeABC", Any]) -> bool:
         """
         ``__eq__`` should be implemented by subclasses.
         """

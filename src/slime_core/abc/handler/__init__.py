@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from slime_core.utils.common import Count
 from slime_core.utils.decorator import RemoveOverload, OverloadFunc
 from slime_core.utils.abc.base import (
-    CoreMutableBiListItem,
-    CoreBiList,
-    CoreCompositeStructure,
+    MutableBiListItemABC,
+    BiListABC,
+    CompositeStructureABC,
 )
 from slime_core.utils.typing.native import (
     Iterable,
@@ -43,9 +43,9 @@ _HandlerWrapperContainerT = TypeVar("_HandlerWrapperContainerT")
         "set_lifecycle",
     ]
 )
-class CoreHandler(
-    CoreCompositeStructure[_HandlerT],
-    CoreMutableBiListItem[_HandlerT, _HandlerContainerT],
+class HandlerABC(
+    CompositeStructureABC[_HandlerT],
+    MutableBiListItemABC[_HandlerT, _HandlerContainerT],
     ABC,
     Generic[
         _HandlerT,
@@ -61,11 +61,11 @@ class CoreHandler(
     Generics:
 
     ```Python
-    CoreHandler[
-        _HandlerT: CoreHandler,
-        _HandlerContainerT: CoreHandlerContainer,
-        _HandlerWrapperT: CoreHandlerWrapper,
-        _HandlerWrapperContainerT: CoreHandlerWrapperContainer,
+    HandlerABC[
+        _HandlerT: HandlerABC,
+        _HandlerContainerT: HandlerContainerABC,
+        _HandlerWrapperT: HandlerWrapperABC,
+        _HandlerWrapperContainerT: HandlerWrapperContainerABC,
         _ContextT
     ]
     ```
@@ -246,15 +246,15 @@ class CoreHandler(
         pass
 
 
-class CoreHandlerContainer(
-    CoreHandler[
+class HandlerContainerABC(
+    HandlerABC[
         _HandlerT,
         _HandlerContainerT,
         _HandlerWrapperT,
         _HandlerWrapperContainerT,
         _ContextT,
     ],
-    CoreBiList[_HandlerT],
+    BiListABC[_HandlerT],
     ABC,
     Generic[
         _HandlerT,
