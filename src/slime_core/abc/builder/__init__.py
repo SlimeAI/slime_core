@@ -4,9 +4,9 @@ from slime_core.utils.typing.native import TypeVar, Generic, Generator
 _ContextT = TypeVar("_ContextT")
 
 
-class GeneralBuildHookABC(ABC, Generic[_ContextT]):
+class GeneralBuilderABC(ABC, Generic[_ContextT]):
     """
-    Build hook for handler building management.
+    Builder for handler building management.
     """
 
     @abstractmethod
@@ -20,12 +20,12 @@ class GeneralBuildHookABC(ABC, Generic[_ContextT]):
     def run_build_pipeline__(self, ctx: _ContextT) -> None:
         """
         Perform a complete build operation including build-related methods in
-        launch hook, plugin hook, build hook, etc.
+        plugin, build, etc.
         """
         pass
 
 
-class GeneralBuildInterfaceABC(ABC, Generic[_ContextT]):
+class GeneralBuilderWrapperABC(ABC, Generic[_ContextT]):
     """
     Interface for building handlers.
     """
@@ -34,12 +34,12 @@ class GeneralBuildInterfaceABC(ABC, Generic[_ContextT]):
     def build_pipeline_yield(self, ctx: _ContextT) -> Generator:
         """
         Perform build-related operations before and after the ``build_pipeline``
-        method in ``GeneralBuildHookABC`` is called.
+        method in ``GeneralBuilderABC`` is called.
         """
         pass
 
 
-class BuildHookABC(ABC, Generic[_ContextT]):
+class BuilderABC(ABC, Generic[_ContextT]):
 
     @abstractmethod
     def build_train(self, ctx: _ContextT) -> None:
@@ -84,7 +84,7 @@ class BuildHookABC(ABC, Generic[_ContextT]):
         pass
 
 
-class BuildInterfaceABC(ABC, Generic[_ContextT]):
+class BuilderWrapperABC(ABC, Generic[_ContextT]):
 
     @abstractmethod
     def build_train_yield(self, ctx: _ContextT) -> Generator:

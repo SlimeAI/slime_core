@@ -89,7 +89,7 @@ class HandlerABC(
     def __call__(self, ctx: _ContextT) -> None:
         """
         Wrapper method for calling ``handle``. Implements enhanced operations (e.g.,
-        exception handling, launch hook call, etc.)
+        exception handling, etc.)
         """
         pass
 
