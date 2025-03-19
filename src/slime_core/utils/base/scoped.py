@@ -79,9 +79,7 @@ class ScopedManager(
             return ctxgen
         else:
             manager_container = cast(
-                ScopedManagerContainerABC[
-                    ScopedManagerABC[ScopedABC, Any], ScopedABC
-                ],
+                ScopedManagerContainerABC[ScopedManagerABC[ScopedABC, Any], ScopedABC],
                 manager_container,
             )
 

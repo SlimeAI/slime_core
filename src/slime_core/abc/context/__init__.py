@@ -70,15 +70,7 @@ class ContextABC(TempContextABC, ABC, Generic[_CompileT]):
         pass
 
 
-class BuilderContextABC(TempContextABC, ABC):
-
-    @abstractmethod
-    def initialize__(self) -> None:
-        # builders
-        from slime_core.abc.builder.plugin import BuilderPluginContainerABC
-
-        self.plugins: BuilderPluginContainerABC
-
-        from slime_core.abc.builder import BuilderABC
-
-        self.build: Union[BuilderABC, Nothing]
+class HookContextABC(TempContextABC, ABC):
+    """
+    Builders, BuilderExtensions...
+    """
